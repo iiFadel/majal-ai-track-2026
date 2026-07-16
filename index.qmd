@@ -1,13 +1,17 @@
 ---
-title: "Majal Initiative: AI Track"
+title: "Majal Summer Program: AI Track"
 subtitle: "Five days: from linear regression to autonomous agents"
 ---
+
+*Published July 17, 2026*
+
+**GitHub Repository:** [iiFadel/majal-ai-track-2026](https://github.com/iiFadel/majal-ai-track-2026)
 
 ## Course Material
 
 | Day | Topic | Status | Slides | Labs |
 |:---:|-------|:------:|:------:|------|
-| 1 | **AI Foundations & Supervised Learning** | 🚧 In progress | [**Open slides**](slides/day1.qmd) | Lab 0 · Lab 1 · Lab 2 |
+| 1 | **AI Foundations & Supervised Learning** | 🚧 In progress | [**Open slides**](slides/day1.qmd) | [Lab 0](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab0_Data_Explorer_Pokemon.ipynb) · [Lab 1](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab1_Calorie_Predictor_Regression.ipynb) · [Lab 2](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab2_Mushroom_Survival_Classification.ipynb) |
 | 2 | **Unsupervised Learning** | Coming soon | — | — |
 | 3 | **Computer Vision & Deep Learning** | Coming soon | — | — |
 | 4 | **NLP → Transformers → LLMs** | Coming soon | — | — |
@@ -15,7 +19,6 @@ subtitle: "Five days: from linear regression to autonomous agents"
 
 : {.striped .hover}
 
-*Day 1 is live and improving day by day. Days 2 through 5 are still being built and will appear here once ready.*
 
 ## How to use this
 
@@ -23,7 +26,3 @@ subtitle: "Five days: from linear regression to autonomous agents"
 - **Labs** open in Google Colab. Nothing to install.
 - Navigate slides with arrow keys, `F` for fullscreen, `S` for speaker notes, `Esc` for an overview of all slides.
 
-## Requirements
-
-- A Google account (for Colab)
-- Days 4 and 5 need an API key: your instructor will give you one

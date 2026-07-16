@@ -12,7 +12,7 @@ Five-day AI curriculum: supervised learning → unsupervised → computer vision
 | 2 | Unsupervised Learning | soon | `labs/day2/` |
 | 3 | Computer Vision & Deep Learning | soon | `labs/day3/` |
 | 4 | NLP → Transformers → LLMs | soon | `labs/day4/` |
-| 5 | Agentic AI | [slides](https://<your-username>.github.io/majal-ai/slides/day5.html) | `labs/day5/` |
+| 5 | Agentic AI | soon | `labs/day5/` |
 
 ## Building locally
 

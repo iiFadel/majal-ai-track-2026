@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .stage { display:flex; gap:24px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
+  .col { width:290px; }
+  .sl { margin:10px 0; }
+  .sl label { display:flex; justify-content:space-between; font-size:13px; color:#4A6068; font-weight:700; margin-bottom:3px; }
+  .sl label b { font-family:"JetBrains Mono",Menlo,monospace; color:#00567C; }
+  input[type=range] { width:100%; accent-color:#00567C; }
+  .chiprow { display:flex; gap:5px; flex-wrap:wrap; margin-top:4px; }
+  .chiprow button { font-size:12px; padding:5px 10px; }
+  #breakdown { width:340px; }
+  .brow { display:flex; justify-content:space-between; align-items:center; padding:6px 4px;
+          border-bottom:1px solid #E0E7E8; font-size:13px; }
+  .brow .lab { color:#4A6068; font-weight:600; }
+  .brow .val { font-family:"JetBrains Mono",Menlo,monospace; font-weight:700; color:#12333D; }
+  .brow .val.neg { color:#C0504D; }
+  #total { margin-top:12px; text-align:center; padding:14px; background:#00567C; border-radius:10px; }
+  #total .lab { color:#CFE6E9; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+  #total .val { color:#fff; font-size:28px; font-weight:900; font-family:"JetBrains Mono",Menlo,monospace; }
+  #note { font-size:11.5px; color:#8AA1A8; text-align:center; margin-top:10px; max-width:660px; margin-left:auto; margin-right:auto; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="stage">
+    <div class="col">
+      <div class="sl"><label>Size <b id="vSize">220 m²</b></label>
+        <input type="range" id="rSize" min="50" max="500" step="10" value="220"></div>
+      <div class="sl"><label>Bedrooms <b id="vBed">4</b></label>
+        <input type="range" id="rBed" min="1" max="6" step="1" value="4"></div>
+      <div class="sl"><label>Building age <b id="vAge">0 years</b></label>
+        <input type="range" id="rAge" min="0" max="30" step="1" value="0"></div>
+      <div class="sl"><label>District</label>
+        <div class="chiprow" id="districts"></div></div>
+    </div>
+    <div id="breakdown">
+      <div id="rows"></div>
+      <div id="total"><div class="lab">Predicted price</div><div class="val" id="vTotal"></div></div>
+    </div>
+  </div>
+  <div id="note">This uses fixed illustrative weights, chosen to be roughly consistent with the example table.
+  Later you'll see a model LEARN weights like these from data, instead of us setting them by hand.</div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var BASE = 60000, PER_M2 = 3000, PER_BED = 35000, PER_AGE = -3500;
+  var DISTRICTS = [
+    { n: "Al Faisaliyah", adj: 90000 },
+    { n: "Al Shati", adj: 105000 },
+    { n: "Al Aziziyah", adj: 150000 },
+    { n: "Al Rakah", adj: 265000 }
+  ];
+  var dist = 0;
+
+  var box = $("districts");
+  DISTRICTS.forEach(function (d, i) {
+    var b = document.createElement("button");
+    b.textContent = d.n;
+    if (i === 0) { b.className = "on"; }
+    b.onclick = function () {
+      dist = i;
+      var bs = box.querySelectorAll("button");
+      for (var j = 0; j < bs.length; j++) { bs[j].className = (j === i) ? "on" : ""; }
+      render();
+    };
+    box.appendChild(b);
+  });
+
+  function fmt(n) { return (n < 0 ? "\u2212" : "") + Math.abs(Math.round(n)).toLocaleString("en-US") + " SAR"; }
+
+  function render() {
+    var size = +$("rSize").value, bed = +$("rBed").value, age = +$("rAge").value;
+    $("vSize").textContent = size + " m\u00B2";
+    $("vBed").textContent = bed;
+    $("vAge").textContent = age + " years";
+
+    var contribs = [
+      ["Base price", BASE],
+      ["Size: " + size + " m\u00B2 \u00D7 3,000", size * PER_M2],
+      ["Bedrooms: " + bed + " \u00D7 35,000", bed * PER_BED],
+      ["District: " + DISTRICTS[dist].n, DISTRICTS[dist].adj],
+      ["Age: " + age + " yrs \u00D7 \u22123,500", age * PER_AGE]
+    ];
+    var total = contribs.reduce(function (s, c) { return s + c[1]; }, 0);
+    $("rows").innerHTML = contribs.map(function (c) {
+      return '<div class="brow"><span class="lab">' + c[0] + '</span>' +
+             '<span class="val' + (c[1] < 0 ? ' neg' : '') + '">' + fmt(c[1]) + '</span></div>';
+    }).join("");
+    $("vTotal").textContent = fmt(Math.max(0, total));
+  }
+  $("rSize").oninput = render;
+  $("rBed").oninput = render;
+  $("rAge").oninput = render;
+  render();
+})();
+</script>
+</body>
+</html>

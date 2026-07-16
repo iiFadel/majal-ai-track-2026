@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 10px;
+  font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
+  font-size: 15px; color: #12333D; background: transparent;
+}
+.w { border: 1px solid #E0E7E8; border-radius: 12px; background: #F6F8F8; padding: 14px; }
+button {
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  border: 1px solid #CDD8DA; background: #fff; color: #12333D;
+  border-radius: 999px; padding: 7px 13px; cursor: pointer;
+  transition: all 120ms ease;
+}
+button:hover { border-color: #8AA1A8; background: #EEF3F3; }
+button.on { background: #00567C; color: #fff; border-color: #00567C; }
+button.primary { background: #1F8F89; color: #fff; border-color: #1F8F89; font-weight: 700; }
+button.primary:hover { background: #33D3CB; border-color: #33D3CB; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+.mono { font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; }

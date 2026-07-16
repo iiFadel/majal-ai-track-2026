@@ -1,0 +1,29 @@
+---
+title: "Majal Initiative: AI Track"
+subtitle: "Five days: from linear regression to autonomous agents"
+---
+
+## Course Material
+
+| Day | Topic | Status | Slides | Labs |
+|:---:|-------|:------:|:------:|------|
+| 1 | **AI Foundations & Supervised Learning** | 🚧 In progress | [**Open slides**](slides/day1.qmd) | Lab 0 · Lab 1 · Lab 2 |
+| 2 | **Unsupervised Learning** | Coming soon | — | — |
+| 3 | **Computer Vision & Deep Learning** | Coming soon | — | — |
+| 4 | **NLP → Transformers → LLMs** | Coming soon | — | — |
+| 5 | **Agentic AI: RAG → Tools → Agents** | Coming soon | — | — |
+
+: {.striped .hover}
+
+*Day 1 is live and improving day by day. Days 2 through 5 are still being built and will appear here once ready.*
+
+## How to use this
+
+- **Slides** open in your browser, on a laptop or your phone. Some slides are interactive: drag the sliders, type in the boxes.
+- **Labs** open in Google Colab. Nothing to install.
+- Navigate slides with arrow keys, `F` for fullscreen, `S` for speaker notes, `Esc` for an overview of all slides.
+
+## Requirements
+
+- A Google account (for Colab)
+- Days 4 and 5 need an API key: your instructor will give you one

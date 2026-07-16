@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .stage { display:flex; gap:22px; align-items:flex-start; justify-content:center; }
+  .stage > canvas { flex:0 0 auto; }
+  canvas { border:1px solid #CDD8DA; border-radius:10px; background:#fff; display:block; }
+  #side { width:260px; flex:0 0 260px; }
+  .sl { margin:8px 0; }
+  .sl label { display:flex; justify-content:space-between; font-size:13px; color:#4A6068; font-weight:700; margin-bottom:2px; }
+  .sl label b { font-family:"JetBrains Mono",Menlo,monospace; color:#00567C; }
+  input[type=range] { width:100%; accent-color:#00567C; }
+  #eq { font-family:"JetBrains Mono",Menlo,monospace; font-size:14px; font-weight:700;
+        color:#00567C; text-align:center; margin:10px 0; min-height:22px; }
+  #dec { text-align:center; font-size:14px; font-weight:800; padding:8px; border-radius:8px; margin-top:8px; min-height:20px; }
+  .yes { background:#D9F2E5; color:#0f6b3d; }
+  .no  { background:#F8E1E0; color:#8a2f2c; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="stage">
+    <canvas id="cv" width="400" height="300"></canvas>
+    <div id="side">
+      <div class="sl"><label>Score z (from the features) <b id="vz">0.0</b></label>
+        <input type="range" id="rz" min="-8" max="8" step="0.1" value="0"></div>
+      <div id="eq"></div>
+      <div class="sl"><label>Decision threshold <b id="vth">0.50</b></label>
+        <input type="range" id="rth" min="0.1" max="0.9" step="0.05" value="0.5"></div>
+      <div id="dec"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var W = 400, H = 300, PADL = 40, PADB = 34, PADT = 14, PADR = 12;
+  function sig(z) { return 1 / (1 + Math.exp(-z)); }
+  function px(z) { return PADL + (z + 8) / 16 * (W - PADL - PADR); }
+  function py(p) { return H - PADB - p * (H - PADB - PADT); }
+
+  var ctx = $("cv").getContext("2d");
+  function draw() {
+    var z = +$("rz").value, th = +$("rth").value;
+    ctx.clearRect(0, 0, W, H);
+    // axes
+    ctx.strokeStyle = "#8AA1A8"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(PADL, PADT); ctx.lineTo(PADL, H-PADB); ctx.lineTo(W-PADR, H-PADB); ctx.stroke();
+    ctx.fillStyle = "#4A6068"; ctx.font = "700 11px 'Montserrat', sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("z (the score)", (PADL+W)/2, H - 8);
+    ctx.save(); ctx.translate(14, H/2); ctx.rotate(-Math.PI/2); ctx.fillText("probability", 0, 0); ctx.restore();
+    ctx.fillText("0", PADL, H-PADB+16); ctx.fillText("1", PADL, PADT+4);
+    // threshold line
+    ctx.strokeStyle = "#C0504D"; ctx.setLineDash([5,4]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(PADL, py(th)); ctx.lineTo(W-PADR, py(th)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#C0504D"; ctx.textAlign = "left"; ctx.font = "700 10px 'Montserrat', sans-serif";
+    ctx.fillText("threshold " + th.toFixed(2), PADL + 4, py(th) - 5);
+    // sigmoid curve
+    ctx.strokeStyle = "#00567C"; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (var zz = -8; zz <= 8; zz += 0.1) {
+      var X = px(zz), Y = py(sig(zz));
+      if (zz === -8) { ctx.moveTo(X, Y); } else { ctx.lineTo(X, Y); }
+    }
+    ctx.stroke();
+    // current point
+    var p = sig(z);
+    ctx.fillStyle = "#FFD728"; ctx.strokeStyle = "#12333D"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px(z), py(p), 7, 0, 7); ctx.fill(); ctx.stroke();
+
+    $("vz").textContent = z.toFixed(1);
+    $("vth").textContent = th.toFixed(2);
+    $("eq").innerHTML = "&#963;(" + z.toFixed(1) + ") = " + p.toFixed(3);
+    var dec = $("dec");
+    if (p >= th) { dec.className = "yes"; dec.textContent = "probability " + p.toFixed(2) + " >= " + th.toFixed(2) + " -> predict class 1"; }
+    else { dec.className = "no"; dec.textContent = "probability " + p.toFixed(2) + " < " + th.toFixed(2) + " -> predict class 0"; }
+  }
+  $("rz").oninput = draw;
+  $("rth").oninput = draw;
+  draw();
+})();
+</script>
+</body>
+</html>

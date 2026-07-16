@@ -1,0 +1,26 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - slides/*.qmd
+  resources:
+    - slides/widgets/**
+    - slides/assets/**
+
+website:
+  title: "Majal AI Track"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: slides/day1.qmd
+        text: Day 1
+      # Day 2-5: add back here once each is ready and un-ignored in .gitignore
+      #   - href: slides/day2.qmd
+      #     text: Day 2
+
+format:
+  html:
+    theme: cosmo
+    toc: true

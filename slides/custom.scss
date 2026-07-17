@@ -75,6 +75,9 @@ $code-block-bg: $majal-bg;
   box-shadow: none;
   padding: 0.5em 0.9em;
   width: auto;
+  margin: 0.5em 0;  // reveal's base theme sets `margin: ... auto`, which centers the box
+                     // horizontally even with width:auto; override so it stays left-anchored
+                     // like every other element on the slide.
 }
 
 .eyes  { color: $majal-deepteal; font-weight: 800; }
@@ -103,6 +106,101 @@ $code-block-bg: $majal-bg;
   font-weight: 800;
   color: $majal-teal;
   margin-bottom: 0.2em;
+}
+
+// ---- New component library: chips / hero titles / icon-bullets / cards / compare / quiz / terms / checklist ----
+
+// quiz-slide still needs its own empty-title hidden (no chips/eyebrow involved, just a "?" mark)
+.reveal .slides section.quiz-slide > h2:empty { display: none; }
+
+// icon-bullets: colored square + bold headline + gray description, alternating teal/yellow per item
+.icon-bullets p {
+  position: relative;
+  padding-left: 30px;
+  margin: 1.1em 0;
+  color: $majal-slate;
+  font-size: 0.92em;
+  line-height: 1.4;
+  max-width: 44em;
+}
+.icon-bullets p::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.3em;
+  width: 15px; height: 15px;
+  border-radius: 3px;
+  background: $majal-teal;
+}
+.icon-bullets p:nth-of-type(even)::before { background: $majal-yellow; }
+.icon-bullets p strong {
+  display: block;
+  color: $majal-dark;
+  font-size: 1.2em;
+  font-weight: 800;
+  margin-bottom: 0.15em;
+}
+
+// card-grid: numbered cards (Real-World Applications, What You'll Build)
+.card-grid { display: flex; gap: 16px; width: 100%; flex-wrap: wrap; margin-top: 0.4em; }
+.card-grid .card {
+  background: #ECECEC;
+  border-radius: 10px;
+  padding: 1.1em 1.3em;
+  flex: 1 1 200px;
+}
+.card-grid .card p:nth-of-type(1) {
+  font-weight: 800; font-size: 1.4em; color: $majal-teal; margin: 0 0 0.5em;
+}
+.card-grid .card:nth-of-type(even) p:nth-of-type(1) { color: $majal-yellow; }
+.card-grid .card p:nth-of-type(2) {
+  font-weight: 800; color: $majal-dark; font-size: 1.02em; margin: 0 0 0.5em; line-height: 1.25;
+}
+.card-grid .card p:nth-of-type(3) {
+  color: $majal-slate; font-size: 0.82em; margin: 0; line-height: 1.4;
+}
+
+// compare-two: light vs dark two-column comparison card
+.compare-two { display: flex; gap: 20px; width: 100%; margin-top: 0.3em; }
+.compare-col { flex: 1; border-radius: 8px; padding: 1.5em 1.7em; }
+.compare-col.light { background: #ECECEC; color: $majal-dark; }
+.compare-col.dark { background: $majal-blue; color: #fff; }
+.compare-col p:first-of-type {
+  font-weight: 800; font-size: 0.95em; letter-spacing: 0.04em;
+  display: inline-block; padding-bottom: 0.4em; margin-bottom: 1em;
+  border-bottom: 3px solid $majal-teal;
+}
+.compare-col.dark p:first-of-type { border-bottom-color: $majal-yellow; color: #fff; }
+.compare-col p { margin: 1em 0; font-size: 0.85em; line-height: 1.4; }
+
+// quiz-slide: standalone "test your understanding" slide, replaces the old inline .quiz box
+.quiz-mark { display: block; font-size: 2.4em; font-weight: 900; color: $majal-yellow; line-height: 1; margin-bottom: 0.35em; }
+.quiz-slide > p { font-size: 1.05em; color: $majal-dark; margin: 0.7em 0; max-width: 40em; line-height: 1.4; }
+.quiz-footer {
+  text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.62em;
+  font-weight: 800; color: $majal-teal; margin-top: 1.2em;
+}
+
+// terms-list: definition list (Key Terms)
+.terms-list dl { display: grid; grid-template-columns: 190px 1fr; row-gap: 0; column-gap: 30px; margin: 0.4em 0 0; width: 100%; }
+.terms-list dt {
+  font-weight: 800; color: $majal-blue; font-size: 0.95em;
+  border-bottom: 1px solid $majal-line; padding: 1em 0;
+}
+.terms-list dd {
+  margin: 0; color: $majal-slate; font-size: 0.85em; line-height: 1.4;
+  border-bottom: 1px solid $majal-line; padding: 1em 0;
+}
+
+// checklist: Key Takeaways
+.checklist p {
+  position: relative; padding-left: 46px; margin: 1.1em 0;
+  font-size: 0.95em; color: $majal-dark; line-height: 1.4;
+}
+.checklist p::before {
+  content: "\2713"; position: absolute; left: 0; top: -1px;
+  width: 27px; height: 27px; border-radius: 6px; background: $majal-teal;
+  color: #fff; font-weight: 800; font-size: 0.85em;
+  display: flex; align-items: center; justify-content: center;
 }
 
 // Quiz box: appears as its own fragment (click to reveal), extra top margin
@@ -190,4 +288,4 @@ $code-block-bg: $majal-bg;
 .reveal img { border-radius: 8px; }
 
 // Lighter weight for sub-examples nested under a bold label line
-.example-line { font-weight: 400; color: $majal-slate; font-size: 0.92em; margin-top: 0.15em; }
+.example-line { display: inline-block; font-weight: 400; color: $majal-slate; font-size: 0.92em; margin-top: 0.15em; }

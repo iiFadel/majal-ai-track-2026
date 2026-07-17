@@ -9,13 +9,13 @@ subtitle: "Five days: from linear regression to autonomous agents"
 
 ## Course Material
 
-| Day | Topic | Status | Slides | Labs |
-|:---:|-------|:------:|:------:|------|
-| 1 | **AI Foundations & Supervised Learning** | 🚧 In progress | [**Open slides**](slides/day1.qmd) | [Lab 0](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab0_Data_Explorer_Pokemon.ipynb) · [Lab 1](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab1_Calorie_Predictor_Regression.ipynb) · [Lab 2](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab2_Mushroom_Survival_Classification.ipynb) |
-| 2 | **Unsupervised Learning** | Coming soon | — | — |
-| 3 | **Computer Vision & Deep Learning** | Coming soon | — | — |
-| 4 | **NLP → Transformers → LLMs** | Coming soon | — | — |
-| 5 | **Agentic AI: RAG → Tools → Agents** | Coming soon | — | — |
+| Day | Topic | Slides | Labs |
+|:---:|-------|:------:|------|
+| 1 | **AI Foundations & Supervised Learning** | [**Open slides**](slides/day1.qmd) | [Lab 0](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab0_Data_Explorer_Pokemon.ipynb) · [Lab 1](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab1_Calorie_Predictor_Regression.ipynb) · [Lab 2](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day1/Lab2_Mushroom_Survival_Classification.ipynb) |
+| 2 | **Unsupervised Learning** | [**Open slides**](slides/day2.qmd) | [Lab 1](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day2/D2_Lab1_Mall_Detective_KMeans.ipynb) · [Lab 2](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day2/D2_Lab2_Pixel_Artist_Image_Compression.ipynb) · [Lab 3](https://colab.research.google.com/github/iiFadel/majal-ai-track-2026/blob/main/labs/day2/D2_Lab3_Showdown_KMeans_vs_DBSCAN.ipynb) |
+| 3 | **Computer Vision & Deep Learning** | Coming soon | Coming soon |
+| 4 | **NLP → Transformers → LLMs** | Coming soon | Coming soon |
+| 5 | **Agentic AI: RAG → Tools → Agents** | Coming soon | Coming soon |
 
 : {.striped .hover}
 

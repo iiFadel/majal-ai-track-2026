@@ -102,8 +102,14 @@ The student analogy makes them unforgettable:
 | **Unsupervised** | **No answer key**: problems only, find patterns yourself | Grouping customers by shopping behavior |
 | **Reinforcement** | Learning a **video game**: try actions, get rewards or penalties, improve | Game-playing AI, robot control |
 
-::: {.fragment .quiz}
+## {.smaller .quiz-slide}
+
+[?]{.quiz-mark}
+
 Your phone's photo app automatically groups pictures of the same person together, without you ever labeling anyone. Which type of learning? Why?
+
+::: {.quiz-footer}
+Pause & discuss with a partner
 :::
 
 # 📊 Datasets: the fuel {background-color="#eff6ff"}
@@ -141,8 +147,14 @@ ML has the same problem, so we split every dataset:
 
 ![](assets/day1/train_test_split.png){fig-align="center" height="300"}
 
-::: {.fragment .quiz}
-A friend trains a model and proudly reports 99% accuracy, measured on the **training data**. Why should you be suspicious?
+## {.smaller .quiz-slide}
+
+[?]{.quiz-mark}
+
+A friend trains a model and proudly reports 99% accuracy, measured on the training data. Why should you be suspicious?
+
+::: {.quiz-footer}
+Pause & discuss with a partner
 :::
 
 # 📈 Regression {background-color="#ecfdf5"}
@@ -152,14 +164,10 @@ A friend trains a model and proudly reports 99% accuracy, measured on the **trai
 Depends on what you're predicting:
 
 ::: {.incremental}
-- **Regression** → predicting a **number** 🔢
-  ::: {.example-line}
-  house price, tomorrow's temperature, calories burned in a workout
-  :::
-- **Classification** → predicting a **category** 🏷️
-  ::: {.example-line}
-  spam or not, cat or dog, edible or poisonous
-  :::
+- **Regression** → predicting a **number** 🔢\
+  [house price, tomorrow's temperature, calories burned in a workout]{.example-line}
+- **Classification** → predicting a **category** 🏷️\
+  [spam or not, cat or dog, edible or poisonous]{.example-line}
 :::
 
 . . .
@@ -208,9 +216,16 @@ yᵢ = true value · ŷᵢ = prediction · n = number of points. Closer to zero 
 - **Squaring punishes big mistakes brutally**: off by 10 costs 100. Off by 100 costs 10,000. 💥
 :::
 
-::: {.fragment .quiz}
-Why square the errors instead of just averaging them directly?<br>
-Hint: what happens if one error is **+50** and another is **−50**?
+## {.smaller .quiz-slide}
+
+[?]{.quiz-mark}
+
+Why square the errors instead of just averaging them directly?
+
+Hint: what happens if one error is +50 and another is −50?
+
+::: {.quiz-footer}
+Pause & discuss with a partner
 :::
 
 # 🏷️ Classification {background-color="#fdf4ff"}
@@ -319,10 +334,16 @@ It depends on **which mistake is more expensive**:
 - 📧 **Spam filtering**: your job offer in the junk folder (FP) is worse than seeing one spam → protect **precision**
 :::
 
-::: {.fragment .quiz}
-Today's lab: a model that decides whether a mushroom is edible or poisonous. 🍄<br>
-Which mistake is worse, calling a poisonous mushroom "edible", or calling an edible one "poisonous"?<br>
-Which metric should you obsess over?
+## {.smaller .quiz-slide}
+
+[?]{.quiz-mark}
+
+Today's lab: a model that decides whether a mushroom is edible or poisonous. 🍄
+
+Which mistake is worse, calling a poisonous mushroom "edible," or calling an edible one "poisonous"? Which metric should you obsess over?
+
+::: {.quiz-footer}
+Pause & discuss with a partner
 :::
 
 # 🎭 Overfitting & Underfitting {background-color="#fef2f2"}
@@ -355,10 +376,16 @@ One slider controls how complex the model is. Slide from 1 (skimmer) to 9 (memor
 - **Regularization**: a penalty for complexity during training. For now: *"penalty for being too complicated"* is all you need
 :::
 
-::: {.fragment .quiz}
-Model A: 98% training accuracy, 65% test accuracy.<br>
-Model B: 85% training accuracy, 83% test accuracy.<br>
+## {.smaller .quiz-slide}
+
+[?]{.quiz-mark}
+
+Model A: 98% training accuracy, 65% test accuracy. Model B: 85% training accuracy, 83% test accuracy.
+
 Which would you deploy, and what is Model A suffering from?
+
+::: {.quiz-footer}
+Pause & discuss with a partner
 :::
 
 # 🛠️ What you'll build {background-color="#f8fafc"}

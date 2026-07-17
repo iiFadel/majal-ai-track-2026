@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .stage { display:flex; gap:18px; align-items:flex-start; justify-content:flex-start; flex-wrap:wrap; }
+  .stage > canvas { flex:0 0 auto; }
+  canvas { border:1px solid #CDD8DA; border-radius:10px; background:#fff; display:block; }
+  canvas.testable { cursor:crosshair; }
+  #side { width:250px; flex:0 0 250px; }
+  #phase { font-size:14px; font-weight:800; color:#00567D; min-height:44px; margin-bottom:8px; }
+  #hint { font-size:12px; color:#517079; font-weight:700; margin:-4px 0 10px; min-height:16px; }
+  #iter { font-size:12px; color:#517079; font-weight:700; margin-bottom:10px; }
+  .grp { display:flex; gap:5px; align-items:center; margin:8px 0; flex-wrap:wrap; }
+  .grp span { font-size:12px; color:#517079; font-weight:800; margin-right:2px; }
+  #ctl button { margin:3px 3px 3px 0; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="stage">
+    <canvas id="cv" width="480" height="380"></canvas>
+    <div id="side">
+      <div id="phase">Press <b>1 · Drop centroids</b> to begin.</div>
+      <div id="hint"></div>
+      <div id="iter"></div>
+      <div id="ctl">
+        <button class="primary" id="bInit">1 &#183; Drop K random centroids</button><br>
+        <button id="bAssign" disabled>2a &#183; Assign points to nearest</button><br>
+        <button id="bUpdate" disabled>2b &#183; Move centroids to the mean</button><br>
+        <button id="bPlay" disabled>&#9654; Auto-run</button>
+        <button id="bNew">&#127922; New data</button>
+      </div>
+      <div class="grp"><span>K =</span>
+        <button id="k2">2</button><button id="k3" class="on">3</button>
+        <button id="k4">4</button><button id="k5">5</button></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var W = 480, H = 380, PAL = ["#00567D","#FFD728","#33D2CB","#C0504D","#8064A2"];
+  var cv = $("cv"), ctx = cv.getContext("2d");
+  var seed = 7;
+  function rng() { seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+  function gauss() { return (rng()+rng()+rng()+rng()-2) * 1.7; }
+
+  var pts = [], cents = [], prevCents = [], assign = [], K = 3;
+  var iter = 0, phase = "init", playing = null;
+  var testPts = [];
+
+  function makeData() {
+    pts = [];
+    var centers = [[120,100],[340,120],[230,290]];
+    if (rng() > 0.5) { centers.push([390,300]); }
+    centers.forEach(function (c) {
+      for (var i = 0; i < 45; i++) {
+        pts.push([c[0] + gauss()*34, c[1] + gauss()*30]);
+      }
+    });
+    pts = pts.map(function (p) {
+      return [Math.min(W-12, Math.max(12, p[0])), Math.min(H-12, Math.max(12, p[1]))];
+    });
+  }
+  function dist2(a, b) { var dx=a[0]-b[0], dy=a[1]-b[1]; return dx*dx+dy*dy; }
+
+  function doInit() {
+    cents = []; prevCents = [];
+    for (var k = 0; k < K; k++) {
+      cents.push(pts[Math.floor(rng()*pts.length)].slice());
+    }
+    assign = new Array(pts.length).fill(-1);
+    iter = 0; phase = "assign";
+    $("bAssign").disabled = false; $("bUpdate").disabled = true; $("bPlay").disabled = false;
+    $("phase").innerHTML = "K = " + K + " centroids dropped at <b>random</b>. They know nothing yet.";
+    draw();
+  }
+  function doAssign() {
+    for (var i = 0; i < pts.length; i++) {
+      var best = 0, bd = Infinity;
+      for (var k = 0; k < K; k++) {
+        var d = dist2(pts[i], cents[k]);
+        if (d < bd) { bd = d; best = k; }
+      }
+      assign[i] = best;
+    }
+    phase = "update";
+    $("bAssign").disabled = true; $("bUpdate").disabled = false;
+    $("phase").innerHTML = "<b>Assign:</b> every point joined its NEAREST centroid. See the territories?";
+    draw();
+  }
+  function doUpdate() {
+    prevCents = cents.map(function (c) { return c.slice(); });
+    var moved = 0;
+    for (var k = 0; k < K; k++) {
+      var sx = 0, sy = 0, n = 0;
+      for (var i = 0; i < pts.length; i++) {
+        if (assign[i] === k) { sx += pts[i][0]; sy += pts[i][1]; n++; }
+      }
+      if (n > 0) {
+        var nx = sx/n, ny = sy/n;
+        moved = Math.max(moved, Math.sqrt(dist2(cents[k], [nx,ny])));
+        cents[k] = [nx, ny];
+      }
+    }
+    iter++;
+    $("iter").textContent = "iteration " + iter;
+    phase = "assign";
+    $("bAssign").disabled = false; $("bUpdate").disabled = true;
+    if (moved < 0.5) {
+      phase = "done";
+      $("bAssign").disabled = true; $("bPlay").disabled = true;
+      if (playing) { clearInterval(playing); playing = null; $("bPlay").innerHTML = "&#9654; Auto-run"; }
+      $("phase").innerHTML = "&#127881; <b>Converged!</b> The centroids stopped moving after " + iter + " iterations. These clusters are final.";
+      $("hint").textContent = "Click anywhere on the plot to test a new point \u2192";
+      cv.classList.add("testable");
+    } else {
+      $("phase").innerHTML = "<b>Update:</b> each centroid moved to the MEAN of its members (arrows). Now reassign&#8230;";
+    }
+    draw();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (var i = 0; i < pts.length; i++) {
+      ctx.fillStyle = assign[i] >= 0 ? PAL[assign[i]] : "#8AA1A8";
+      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], 4, 0, 7); ctx.fill();
+    }
+    for (var k = 0; k < cents.length; k++) {
+      if (prevCents[k]) {
+        ctx.strokeStyle = PAL[k]; ctx.lineWidth = 2; ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(prevCents[k][0], prevCents[k][1]);
+        ctx.lineTo(cents[k][0], cents[k][1]); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(138,161,168,0.5)";
+        ctx.beginPath(); ctx.arc(prevCents[k][0], prevCents[k][1], 6, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = PAL[k];
+      ctx.strokeStyle = "#12333D"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cents[k][0], cents[k][1], 11, 0, 7);
+      ctx.fill(); ctx.stroke();
+    }
+    for (var t = 0; t < testPts.length; t++) {
+      var tp = testPts[t], col = PAL[tp.k];
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(tp.x, tp.y); ctx.lineTo(cents[tp.k][0], cents[tp.k][1]); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = col; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(tp.x, tp.y, 7, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "#12333D"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(tp.x-3, tp.y); ctx.lineTo(tp.x+3, tp.y);
+      ctx.moveTo(tp.x, tp.y-3); ctx.lineTo(tp.x, tp.y+3); ctx.stroke();
+    }
+  }
+
+  function resetAll() {
+    cents = []; prevCents = []; assign = new Array(pts.length).fill(-1);
+    iter = 0; phase = "init"; testPts = [];
+    if (playing) { clearInterval(playing); playing = null; $("bPlay").innerHTML = "&#9654; Auto-run"; }
+    $("bAssign").disabled = true; $("bUpdate").disabled = true; $("bPlay").disabled = true;
+    $("iter").textContent = "";
+    $("phase").innerHTML = "Press <b>1 &#183; Drop centroids</b> to begin.";
+    $("hint").textContent = "";
+    cv.classList.remove("testable");
+    draw();
+  }
+
+  cv.addEventListener("click", function (e) {
+    if (phase !== "done") { return; }
+    var rect = cv.getBoundingClientRect();
+    var x = (e.clientX - rect.left) * (W / rect.width);
+    var y = (e.clientY - rect.top) * (H / rect.height);
+    var best = 0, bd = Infinity;
+    for (var k = 0; k < K; k++) {
+      var d = dist2([x, y], cents[k]);
+      if (d < bd) { bd = d; best = k; }
+    }
+    testPts.push({ x: x, y: y, k: best });
+    draw();
+  });
+
+  $("bInit").onclick = doInit;
+  $("bAssign").onclick = doAssign;
+  $("bUpdate").onclick = doUpdate;
+  $("bPlay").onclick = function () {
+    if (playing) { clearInterval(playing); playing = null; $("bPlay").innerHTML = "&#9654; Auto-run"; return; }
+    $("bPlay").innerHTML = "&#9208; Pause";
+    playing = setInterval(function () {
+      if (phase === "assign") { doAssign(); }
+      else if (phase === "update") { doUpdate(); }
+    }, 800);
+  };
+  $("bNew").onclick = function () { makeData(); resetAll(); };
+  [2,3,4,5].forEach(function (k) {
+    $("k"+k).onclick = function () {
+      K = k;
+      [2,3,4,5].forEach(function (m) { $("k"+m).className = (m===k) ? "on" : ""; });
+      resetAll();
+    };
+  });
+
+  makeData(); resetAll();
+})();
+</script>
+</body>
+</html>

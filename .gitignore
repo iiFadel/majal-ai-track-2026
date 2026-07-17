@@ -6,14 +6,13 @@ __pycache__/
 
 # ---- Days 2-5: not finished yet, excluded until ready ----
 # To publish a day: delete its block below, then `git add` those paths.
-slides/day2.qmd
 slides/day3.qmd
 slides/day4.qmd
 slides/day5.qmd
 
-slides/assets/day2/
 slides/assets/day3/
 slides/assets/day4/
+slides/assets/day5/
 
 slides/widgets/dbscan.html
 slides/widgets/elbow.html

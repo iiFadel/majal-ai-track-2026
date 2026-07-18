@@ -22,6 +22,8 @@ website:
         text: Day 3
       - href: slides/day4.qmd
         text: Day 4
+      - href: slides/day5.qmd
+        text: Day 5
 
 format:
   html:

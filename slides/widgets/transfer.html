@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  #steps { display:flex; gap:6px; justify-content:center; margin-bottom:12px; flex-wrap:wrap; }
+  .panel { border:2px dashed #CDD8DA; border-radius:10px; padding:8px 10px 10px; margin-bottom:6px;
+           transition: all 400ms ease; position:relative; background:#fff; }
+  .panel.faded { opacity:.42; }
+  .panel.hidden { opacity:0; transform:translateY(-14px); pointer-events:none; }
+  .panel.live { border-color:#33D2CB; border-style:solid; }
+  .ptitle { font-size:11px; font-weight:800; letter-spacing:.06em; color:#517079; text-transform:uppercase;
+            margin-bottom:6px; text-align:center; }
+  .ptitle span { color:#00567D; }
+  .row { display:flex; align-items:center; justify-content:center; gap:4px; min-height:76px; }
+  .blk { border-radius:8px; border:3px solid #CDD8DA; background:#fff;
+         display:flex; flex-direction:column; align-items:center; justify-content:center;
+         padding:4px 3px; position:relative; overflow:hidden;
+         transition: all 450ms cubic-bezier(.4,0,.2,1); }
+  .blk small { font-size:9px; color:#517079; font-weight:800; line-height:1.15; }
+  .blk.frozen { background:#CFE6E9; border-color:#33D2CB; }
+  .blk.hot { background:#FFD728; border-color:#C9A800; }
+  .blk.gone { opacity:0; transform:translate(70px,-40px) rotate(22deg) scale(.6);
+              width:0 !important; padding:0; margin:0; border-width:0; }
+  .blk.arriving { animation: drop 600ms cubic-bezier(.34,1.56,.64,1); }
+  @keyframes drop { from { opacity:0; transform:translateY(-46px) scale(.5); } to { opacity:1; } }
+  .blk.training { animation: pulse 900ms ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow:0 0 0 0 rgba(242,210,0,.85); }
+                     50% { box-shadow:0 0 0 10px rgba(242,210,0,0); } }
+  .badge { position:absolute; top:-2px; right:1px; font-size:11px; }
+  .arrow { color:#8AA1A8; font-size:13px; }
+  #copyArrow { text-align:center; font-size:12px; font-weight:800; color:#1F8F89;
+               height:26px; line-height:26px; transition: opacity 300ms ease; }
+  #copyArrow.off { opacity:0; }
+  #data { display:flex; align-items:center; justify-content:center; gap:6px; height:46px;
+          transition: opacity 350ms ease; }
+  #data.off { opacity:0; }
+  .thumb { width:30px; height:30px; border-radius:6px; border:2px solid #CDD8DA; background:#F6F8F8;
+           display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .thumb.fly { animation: fly 700ms ease-in-out; }
+  @keyframes fly { 0% { transform:translateY(0); } 60% { transform:translateY(-22px) scale(1.15); } 100% { transform:translateY(0); } }
+  #dlabel { font-size:10px; font-weight:800; color:#517079; margin-right:2px; }
+  .stats { display:flex; gap:18px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
+  /* fixed width, not min-width: the values below change length as steps advance, and a
+     min-width flex child would resize and shove its neighbours sideways on every click. */
+  .stat { width:185px; flex:0 0 185px; }
+  .stat label { display:flex; justify-content:space-between; font-size:11px; color:#517079; font-weight:700; margin-bottom:3px; }
+  .stat label b { font-family:"JetBrains Mono",Menlo,monospace; font-size:12px; color:#00567D; }
+  .barbg { height:10px; background:#E0E7E8; border-radius:5px; overflow:hidden; }
+  .barbg i { display:block; height:100%; border-radius:5px; transition: width 600ms ease; }
+  #story { margin-top:9px; font-size:13px; text-align:center; min-height:46px; color:#12333D; line-height:1.4; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="steps">
+    <button id="s0" class="on">1 &#183; The pretrained giant</button>
+    <button id="s1">2 &#183; Copy it down</button>
+    <button id="s2">3 &#183; &#9986;&#65039; Chop the last layer</button>
+    <button id="s3">4 &#183; &#128247; Bring YOUR data</button>
+    <button id="s4">5 &#183; &#128293; Fine-tune it</button>
+  </div>
+
+  <div class="panel faded" id="pSrc">
+    <div class="ptitle">Pretrained on ImageNet &#183; <span>1.2M images, 1000 classes</span></div>
+    <div class="row" id="rowSrc"></div>
+  </div>
+
+  <div id="copyArrow" class="off">&#8595;&nbsp; copy the weights &nbsp;&#8595;</div>
+
+  <div class="panel hidden" id="pMine">
+    <div class="ptitle">Your model &#183; <span id="mineSub">cat vs dog</span></div>
+    <div class="row" id="rowMine"></div>
+  </div>
+
+  <div id="data" class="off">
+    <span id="dlabel">Your dataset:</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><label>Weights you must train <b id="vP">&#8212;</b></label>
+      <div class="barbg"><i id="bP" style="background:#C0504D"></i></div></div>
+    <div class="stat"><label>Images you need <b id="vD">&#8212;</b></label>
+      <div class="barbg"><i id="bD" style="background:#FFD728"></i></div></div>
+    <div class="stat"><label>Test accuracy <b id="vA">&#8212;</b></label>
+      <div class="barbg"><i id="bA" style="background:#1F8F89"></i></div></div>
+  </div>
+
+  <div id="story"></div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var BODY = [
+    { n:"conv&#8321;", w:34, h:64 }, { n:"conv&#8322;", w:34, h:58 },
+    { n:"conv&#8323;", w:34, h:52 }, { n:"conv&#8324;", w:34, h:46 },
+    { n:"pool", w:28, h:40 }
+  ];
+  var step = 0, trainTimer = null;
+
+  function buildRow(el, opts) {
+    el.innerHTML = "";
+    BODY.forEach(function (L) {
+      var d = document.createElement("div");
+      d.className = "blk frozen";
+      d.style.width = L.w + "px"; d.style.height = L.h + "px";
+      d.innerHTML = "<small>" + L.n + "</small>";
+      if (opts.lock) { d.innerHTML += '<span class="badge">&#128274;</span>'; }
+      el.appendChild(d);
+      var a = document.createElement("div"); a.className = "arrow"; a.innerHTML = "&#8594;";
+      el.appendChild(a);
+    });
+    var head = document.createElement("div");
+    head.style.width = "76px"; head.style.height = "48px";
+    if (opts.head === "old") {
+      head.className = "blk frozen";
+      head.innerHTML = "<small>FC head</small><small style='color:#00567D'>1000 classes</small>";
+    } else if (opts.head === "chopped") {
+      head.className = "blk frozen gone";
+      head.innerHTML = "<small>FC head</small><small>1000 classes</small>";
+    } else if (opts.head === "new") {
+      head.className = "blk hot" + (opts.arriving ? " arriving" : "") + (opts.train ? " training" : "");
+      head.style.width = "70px"; head.style.height = "44px";
+      head.innerHTML = "<small>NEW head</small><small style='color:#7f6000'>cat / dog</small>";
+    }
+    el.appendChild(head);
+  }
+
+  function setThumbs(fly) {
+    var d = $("data");
+    d.querySelectorAll(".thumb").forEach(function (n) { n.remove(); });
+    var icons = ["\uD83D\uDC31","\uD83D\uDC36","\uD83D\uDC31","\uD83D\uDC36","\uD83D\uDC31","\uD83D\uDC36"];
+    icons.forEach(function (ic, i) {
+      var t = document.createElement("div");
+      t.className = "thumb" + (fly ? " fly" : "");
+      t.style.animationDelay = (i * 90) + "ms";
+      t.textContent = ic;
+      d.appendChild(t);
+    });
+    var more = document.createElement("span");
+    more.className = "thumb";
+    more.style.border = "2px dashed #CDD8DA";
+    more.style.fontSize = "9px";
+    more.style.fontWeight = "800";
+    more.style.color = "#517079";
+    more.textContent = "+394";
+    d.appendChild(more);
+  }
+
+  function stats(p, pw, d, dw, a, aw) {
+    $("vP").innerHTML = p; $("bP").style.width = pw;
+    $("vD").innerHTML = d; $("bD").style.width = dw;
+    $("vA").innerHTML = a; $("bA").style.width = aw;
+  }
+
+  var STORY = [
+    "This is <b>ResNet18</b>, already trained on <b>ImageNet</b>. Its conv layers know how to SEE &#8212; edges, textures, fur, wheels. That knowledge is <b>general</b>: it works on almost any photo.",
+    "&#8595; We <b>copy the whole trained network</b> &#8212; every weight it learned &#8212; and make it ours. Nothing is retrained yet. We just inherited 1.2 million images worth of visual skill, for free.",
+    "&#9986;&#65039; Snip! Off comes the <b>last layer only</b> &#8212; the part that says &#8220;this is one of 1000 ImageNet classes&#8221;. We don&#8217;t want 1000 classes. We want 2. Everything behind it still knows how to see.",
+    "&#127919; We bolt on a <b>tiny new head</b> (512 &#8594; 2), born random, and bring <b>400 photos</b> of our own. Not a million. Four hundred.",
+    "&#128274; The giant is frozen &#8212; &#128293; only the head learns. <b>1,026</b> weights instead of <b>11,689,512</b>. Minutes on a laptop, and it hits <b>94%</b>."
+  ];
+
+  function go(n) {
+    if (trainTimer) { clearInterval(trainTimer); trainTimer = null; }
+    step = n;
+    ["s0","s1","s2","s3","s4"].forEach(function (id, i) { $(id).className = (i === n) ? "on" : ""; });
+
+    // top source panel: highlighted at step 0, faded once we have our own copy
+    $("pSrc").className = "panel " + (n === 0 ? "live" : "faded");
+    $("copyArrow").className = (n >= 1) ? "" : "off";
+    $("pMine").className = "panel " + (n >= 1 ? "live" : "hidden");
+    $("data").className = (n >= 3) ? "" : "off";
+
+    buildRow($("rowSrc"), { head: "old" });
+
+    if (n === 0) {
+      $("rowMine").innerHTML = "";
+    } else if (n === 1) {
+      buildRow($("rowMine"), { head: "old" });
+    } else if (n === 2) {
+      buildRow($("rowMine"), { head: "chopped" });
+    } else if (n === 3) {
+      buildRow($("rowMine"), { head: "new", arriving: true });
+      setThumbs(true);
+    } else {
+      buildRow($("rowMine"), { head: "new", train: true, lock: true });
+      setThumbs(false);
+    }
+
+    $("story").innerHTML = STORY[n];
+
+    if (n === 0)      { stats("11,689,512", "100%", "1.2 million", "100%", "69% (ImageNet)", "69%"); }
+    else if (n === 1) { stats("11,689,512", "100%", "1.2 million", "100%", "&#8212;", "0%"); }
+    else if (n === 2) { stats("11,688,486", "99%", "&#8212;", "0%", "&#8212;", "0%"); }
+    else if (n === 3) { stats("1,026 (random!)", "1.5%", "400", "3%", "~50% (guessing)", "50%"); }
+    else {
+      // step 4: actually animate the training run
+      stats("1,026", "1.5%", "400", "3%", "50%", "50%");
+      var acc = 50, epoch = 0;
+      trainTimer = setInterval(function () {
+        epoch++;
+        acc += (94 - acc) * 0.35 + (Math.random() * 1.2 - 0.4);
+        if (acc > 94.6) { acc = 94.6; }
+        $("vA").innerHTML = acc.toFixed(1) + "% <span style='color:#8AA1A8'>&#183; epoch " + epoch + "</span>";
+        $("bA").style.width = acc + "%";
+        if (epoch >= 12) {
+          clearInterval(trainTimer); trainTimer = null;
+          $("vA").innerHTML = "94% \u2705";
+          $("bA").style.width = "94%";
+        }
+      }, 320);
+    }
+  }
+  ["s0","s1","s2","s3","s4"].forEach(function (id, i) { $(id).onclick = function () { go(i); }; });
+  go(0);
+})();
+</script>
+</body>
+</html>

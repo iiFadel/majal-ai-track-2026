@@ -388,6 +388,18 @@ Which would you deploy, and what is Model A suffering from?
 Pause & discuss with a partner
 :::
 
+## Key Takeaways {.smaller}
+
+::: {.checklist}
+Machine learning flips traditional programming: instead of writing rules, we show examples and let the model find the rules itself.
+
+Regression predicts a number, classification predicts a category , both learn by minimizing an error, MSE for regression, a probability-based score for classification.
+
+Accuracy can lie on imbalanced data. Precision and recall tell you which kind of mistake your model is actually making.
+
+Overfitting means memorizing the training data instead of learning the pattern. Always judge a model on data it has never seen.
+:::
+
 # 🛠️ What you'll build {background-color="#f8fafc"}
 
 ## Three labs {.smaller}

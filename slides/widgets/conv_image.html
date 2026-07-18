@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .stage { display:flex; gap:20px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
+  .col { text-align:center; }
+  .col h4 { margin:0 0 8px; font-size:12px; font-weight:800; color:#517079;
+            text-transform:uppercase; letter-spacing:.08em; }
+  canvas { border:1px solid #CDD8DA; border-radius:8px; display:block; image-rendering:pixelated; }
+  table.k { border-collapse:collapse; margin:0 auto; }
+  table.k td { width:40px; height:34px; text-align:center; font-size:12px; font-weight:800;
+               font-family:"JetBrains Mono",Menlo,monospace;
+               background:rgba(51,210,203,.14); border:1px solid #33D2CB; color:#00567D; }
+  #ctl { display:flex; gap:7px; margin-top:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .grp { display:flex; gap:4px; align-items:center; margin-left:8px; }
+  .grp span { font-size:12px; color:#517079; font-weight:800; }
+  #math { margin-top:9px; text-align:center; font-family:"JetBrains Mono",Menlo,monospace;
+          font-size:13px; color:#00567D; min-height:20px; font-weight:700; }
+  #caption { margin-top:6px; font-size:13px; color:#517079; text-align:center; min-height:19px; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="kernelBtns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;justify-content:center"></div>
+  <div class="stage">
+    <div class="col"><h4>Input &#8212; the kernel walks here</h4><canvas id="cin" width="336" height="336"></canvas></div>
+    <div class="col"><h4>Kernel</h4><div id="ker"></div>
+      <div id="math"></div></div>
+    <div class="col"><h4>Output &#8212; fills in as it goes</h4><canvas id="cout" width="336" height="336"></canvas></div>
+  </div>
+  <div id="ctl">
+    <button class="primary" id="btnPlay">&#9654; Walk</button>
+    <button id="btnInstant">&#9889; Instant</button>
+    <button id="btnReset">&#8634; Reset</button>
+    <div class="grp"><span>Speed</span>
+      <button id="sp1">Slow</button><button id="sp2" class="on">Normal</button><button id="sp3">Fast</button></div>
+  </div>
+  <div id="caption"></div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var N = 48;                 // processing grid (kernel box stays visible at this size)
+  var DISP = 336;             // display size
+  var S = DISP / N;           // 7 px per cell
+  var KERNELS = {
+    "Blur":             { k: [[1/9,1/9,1/9],[1/9,1/9,1/9],[1/9,1/9,1/9]], edge:false,
+                          cap:"Blur: each output pixel is the AVERAGE of the 3&#215;3 under the box. Detail melts." },
+    "Sharpen":          { k: [[0,-1,0],[-1,5,-1],[0,-1,0]], edge:false,
+                          cap:"Sharpen: boost the centre, subtract the neighbours. Edges get punchier." },
+    "Vertical edges":   { k: [[-1,0,1],[-2,0,2],[-1,0,1]], edge:true,
+                          cap:"Bright output = a VERTICAL edge sits under the box right now. Flat areas stay black." },
+    "Horizontal edges": { k: [[-1,-2,-1],[0,0,0],[1,2,1]], edge:true,
+                          cap:"Same photo, different kernel &#8212; now only HORIZONTAL edges light up." },
+    "Emboss":           { k: [[-2,-1,0],[-1,1,1],[0,1,2]], edge:false,
+                          cap:"Emboss: a diagonal difference. Your camera filters are literally kernels." }
+  };
+  var kName = "Vertical edges", speed = 3;
+  var gray = null, outBuf = null, outMin = 0, outMax = 1;
+  var pos = -1, playing = null;
+  var ictx = $("cin").getContext("2d"), octx = $("cout").getContext("2d");
+  var baseImg = null;
+
+  function convAll() {
+    var K = KERNELS[kName].k, edge = KERNELS[kName].edge;
+    outBuf = new Float32Array(N*N); outMin = Infinity; outMax = -Infinity;
+    for (var y=0; y<N; y++) for (var x=0; x<N; x++) {
+      var s = 0;
+      for (var i=-1; i<=1; i++) for (var j=-1; j<=1; j++) {
+        var yy = Math.min(N-1, Math.max(0, y+i)), xx = Math.min(N-1, Math.max(0, x+j));
+        s += gray[yy*N+xx] * K[i+1][j+1];
+      }
+      if (edge) { s = Math.abs(s); }
+      outBuf[y*N+x] = s;
+      if (s < outMin) { outMin = s; }
+      if (s > outMax) { outMax = s; }
+    }
+  }
+  function outPix(idx) {
+    var v = outBuf[idx];
+    if (KERNELS[kName].edge) { return Math.round(255*(v-outMin)/(outMax-outMin+1e-9)); }
+    return Math.max(0, Math.min(255, Math.round(v)));
+  }
+
+  function drawInput() {
+    ictx.imageSmoothingEnabled = false;
+    ictx.clearRect(0,0,DISP,DISP);
+    ictx.drawImage(baseImg, 0, 0, DISP, DISP);
+    if (pos >= 0) {
+      var y = Math.floor(pos / N), x = pos % N;
+      // dim everything except the 3x3 window
+      ictx.fillStyle = "rgba(0,86,125,0.28)";
+      ictx.fillRect(0, 0, DISP, y*S);                      // rows above
+      ictx.fillRect(0, y*S, x*S - S, S*3 > 0 ? S : S);     // left of box on this row
+      ictx.fillRect(0, (y+1)*S, DISP, DISP - (y+1)*S);     // rows below
+      // the walking kernel box
+      var bx = (x-1)*S, by = (y-1)*S;
+      ictx.strokeStyle = "#FFD728"; ictx.lineWidth = 3;
+      ictx.strokeRect(bx, by, S*3, S*3);
+      ictx.strokeStyle = "#00567D"; ictx.lineWidth = 1;
+      ictx.strokeRect(bx-1, by-1, S*3+2, S*3+2);
+      // crosshair on the centre pixel
+      ictx.fillStyle = "rgba(242,210,0,0.35)";
+      ictx.fillRect(x*S, y*S, S, S);
+    }
+  }
+  function drawOutput() {
+    var id = octx.createImageData(N, N);
+    for (var n=0; n<N*N; n++) {
+      var v = (n <= pos) ? outPix(n) : 232;
+      id.data[n*4]=v; id.data[n*4+1]=v; id.data[n*4+2]=v; id.data[n*4+3]=255;
+    }
+    var tmp = document.createElement("canvas"); tmp.width=N; tmp.height=N;
+    tmp.getContext("2d").putImageData(id,0,0);
+    octx.imageSmoothingEnabled = false;
+    octx.clearRect(0,0,DISP,DISP);
+    octx.drawImage(tmp, 0, 0, DISP, DISP);
+    if (pos >= 0 && pos < N*N) {
+      var y = Math.floor(pos/N), x = pos % N;
+      octx.strokeStyle = "#FFD728"; octx.lineWidth = 3;
+      octx.strokeRect(x*S, y*S, S, S);
+    }
+  }
+  function drawKernel() {
+    var K = KERNELS[kName].k, html = '<table class="k">';
+    for (var i=0;i<3;i++){ html += "<tr>";
+      for (var j=0;j<3;j++){ var v=K[i][j];
+        html += "<td>" + (Math.abs(v-1/9)<1e-6 ? "1/9" : String(v)) + "</td>"; }
+      html += "</tr>"; }
+    $("ker").innerHTML = html + "</table>";
+  }
+
+  function reset() {
+    pos = -1;
+    if (playing) { cancelAnimationFrame(playing); playing = null; }
+    $("btnPlay").innerHTML = "&#9654; Walk";
+    convAll(); drawKernel(); drawInput(); drawOutput();
+    $("math").innerHTML = "";
+    $("caption").innerHTML = KERNELS[kName].cap;
+  }
+  function advance(steps) {
+    pos = Math.min(N*N - 1, pos + steps);
+    drawInput(); drawOutput();
+    $("math").innerHTML = "output = <b>" + outPix(pos) + "</b>";
+    if (pos >= N*N - 1) {
+      if (playing) { cancelAnimationFrame(playing); playing = null; }
+      $("btnPlay").innerHTML = "&#9654; Walk";
+      $("math").innerHTML = "<b>Done &#8212; that whole grid is one feature map.</b>";
+      pos = N*N;
+      drawInput(); drawOutput();
+      return false;
+    }
+    return true;
+  }
+  function loop() { if (advance(speed)) { playing = requestAnimationFrame(loop); } }
+
+  $("btnPlay").onclick = function () {
+    if (playing) { cancelAnimationFrame(playing); playing = null; $("btnPlay").innerHTML = "&#9654; Walk"; return; }
+    if (pos >= N*N - 1) { pos = -1; }
+    $("btnPlay").innerHTML = "&#9208; Pause";
+    playing = requestAnimationFrame(loop);
+  };
+  $("btnInstant").onclick = function () {
+    if (playing) { cancelAnimationFrame(playing); playing = null; $("btnPlay").innerHTML = "&#9654; Walk"; }
+    pos = N*N; drawInput(); drawOutput();
+    $("math").innerHTML = "<b>Done &#8212; that whole grid is one feature map.</b>";
+  };
+  $("btnReset").onclick = reset;
+  function setSpeed(v, id) {
+    speed = v;
+    ["sp1","sp2","sp3"].forEach(function(s){ $(s).className = (s===id) ? "on" : ""; });
+  }
+  $("sp1").onclick = function(){ setSpeed(1,"sp1"); };
+  $("sp2").onclick = function(){ setSpeed(3,"sp2"); };
+  $("sp3").onclick = function(){ setSpeed(12,"sp3"); };
+
+  var kb = $("kernelBtns");
+  Object.keys(KERNELS).forEach(function (name) {
+    var b = document.createElement("button");
+    b.textContent = name;
+    if (name === kName) { b.className = "on"; }
+    b.onclick = function () {
+      kName = name;
+      var bs = kb.querySelectorAll("button");
+      for (var j=0;j<bs.length;j++) { bs[j].className = ""; }
+      b.className = "on";
+      reset();
+    };
+    kb.appendChild(b);
+  });
+
+  var img = new Image();
+  img.onload = function () {
+    var tmp = document.createElement("canvas"); tmp.width=N; tmp.height=N;
+    var t = tmp.getContext("2d");
+    t.drawImage(img, 0, 0, N, N);
+    var d = t.getImageData(0,0,N,N).data;
+    gray = new Float32Array(N*N);
+    for (var n=0;n<N*N;n++) { gray[n] = d[n*4]; }
+    baseImg = tmp;
+    reset();
+  };
+  img.src = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPDQwMDRsUFRAWIB0iIiAdHx8kKDQsJCYxJx8fLT0tMTU3Ojo6Iys/RD84QzQ5Ojf/wAALCACAAIABAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/AOiY4NRsSabk0jZJphBzTlQkcmlMZI4NV5JoITiadEP+02KcGjkQNHIrL6qwNNI9Dmm80A+9PBxQSaKB1q0zc03PNBGaTFEjxwQvNOwWNBlmJ7Vw+qeJ7m6nKWzmCEcBVzk+5Iqk/iC+hUA3L9OoJ/kf6Vl3eqS3GXdy5PXJNUmuJYyJIJih9Fbmuh8PeI53nWC6YZYgK/TPsa7uI+ZGreopxXNA4FLQKWpmPJppNJuNP3hUZ3wFUZJrzbX9en1GU5ciN2IijB4CjufeqFl/o4MzOmAOrZyaju9Uilj2lQx9QCKzDKvbKn2pArSMAoLE+lTBJIXV2Rl2HcCRjNdja+NkSFI2thxxnf8A/WrodN1uz1EBYmKSHor9/oa0enagilxRUrHmmmkrJ8WXrWGgXLqpLSDywc9M968ojSeeQJEju5GAAMmuu0zwJqdzCkl/ujQjKx96sv8AD64lkIi3J6UD4bX4YDfn37VuaF4E+wuJbn5yOxrcvNH0+4tTbz26FD1AHI9xXlWuaI2navJaqd0eco3tTNNMgvNkWSytjAPWvTLN5WtEab72OvqKnFLR0p5NANJ3rkfH03mT2Fln5MmRh6ntW58MdCt5DNqNyittO2NSOB716P5CSEBAAMYGKmSzjjGcKPwplwyAYG0464qlevHHEwLBSRXMXl1/c5xnBNcd4pceVFdBNzlSm49ARWD4RUprto5Abe210b3r0uUYOB09KjFOPvSnmg8mg0q81xviaN18QNNIMr5SrF9ec13PgdyumyJxlpM4zjFdVHKUIAI/OnyyyeWSpII9ErIaediQruSOvFV7m2nwPMMhJHU//qrEvonhyrAng7ieo/KuR1+WL7L1BwRj2Gea5m1vPsN9Hcxf8spQce3/ANevWhLHcRRzRkFHUMCPem7adjNAGKaWFBOachrjPGdw7ajEdmI4l4bPX1rd8D3oFhJM0nyby30Fal38RLKzl2RW7SRpwXLbST9Kof8AC1bKY7PsrR56YOQa1oPFUX2JblUyFcCQ+hrlda+I0qXJNsPM29+mK5y88a6jfv8AvG4PbNQ3t0t5bOyDaAuCPQ1ixQyTHOPlz+deneDr/wC2aT5Lx7HtiI/qOxrb6GilB5qHuaTrSoe1c1rOi3OrXV3JLMVjhAEKjtxU/hW3fTtNv4HG6SNckE9T+Fc3J4Z1G8LXDRBYnb5WkfAGOpxVKHwzetOixIjNzuCtkD8a9N0fw8s/hWW1ulZWhO8BHIBPvjrXm0Ph6W5uHLOqQo3I6kj2Hen3OhuDiKV5Vzzui24FEenyxQyqw4ZeM+tZlozGVYQv3CfxNekeDrXytIaUjDSSc/hWyRShc0Ac1XPWgnFAxUroj2kyqv7xlPI+lZHgiWCJ5raXG8yZZT1x3BrtbqzgMI2BDFjgGqVjpsEbvdXGGVfuKgwM962LIB9OuSuNrAjA7V5TEmzWJbMkNy3Q8jmtqOwzyZXKdy3p6VheKrq2hjZbbpGu0f7Rrm9HtmmInC5I7eteraXa/ZdIt4iMNtyfqakZaAOKNvNViKa/ApgParEDLuAfO08GuV8XwvoOtQajZMDDMxPB6+o/rXQ6PrbXQVJCNmOTu4NaM+rtqN8NO02IGC2G+5bOMgfw59zWBrXxCurQPbpp8ttEzH5ZEwSfSuOstTlvr5njQR3DP5iyHsfT6Vv33iCRtNCAeW+fnX3ritQkmuXCs2WZsYzXbeDfDGoP5T3UPlWg+cuxHz+wru7gdcdBxVfbmlCUFBnis8nmmtTM4YVIhrO8TRWp0xzNEvmNwjHsawtEWRLiGJNrckoGyBnHf2zXZ6JqVnaGe3idrm6Ll7mSGE4yfZc4A6Ae1U9dvtGvJEa6FxGkO5i0lo6h+Oi5HJrhxPp1pl4N4ZiSA0ZUj9Kr3t2l1F5qbgFI3tjrz3rPcbp02sDmTgj0r2HwzcNJpojCkImAvHSr8g5qIDBp6gGl2dqxieaa3QVGTzUsR5qDWbP7Zpz4Us65IFcXb3stnKpHDxE4BPpWhpfiKO1sykJltJnkLedD/G3uKu3eoeLPK3PrMKxv0V1+bHvxxXL3d1csSdQvBNzwi8BjVG6vDNB5IUIu7LY4yajsI3uLyOGNiGz8gAzzXtmkWhstOiiY5baCx96nc0zrT0OKeq5rAJ5xSMeMYqP3p0bVZjYkbT0IrzfxTayWmqSjBGTldvTB7VkpO4KBZOFIIx1+lXZb5yIw74VQM/NnNZl7O0zYLfKOgFVndnYt3rrPC+lT299Yy3EDJLPJmF34XI5x+Ir19+BgjBx0qB6jqRBU8Qwea5wKc5oYVGRSoufapgVijaSRgqKMknsKyddtm1vwEdWgsy6/bsCRR8yxKCNx9t1eY3KNHMysCpHXjFQYOcA8GrWn6XealIVtIi+Op7CvQPBfw+vYtRS71GONoVU4Q9CaZ8V78aff6fpli2yW3xcOVP3G/hH5c/lXW+FNei8R6Us+QLmMbZ4/RvX6GtORT6UzbzU0a4qSuczzg0pFN2c9KekZyK5H4hax5FuunWz/ADOMzFT27CvXPCS2OleANLF9LDDaCzUytMwVPmGTnPrmuSm8JeBNTLSWWvQpuyADMjAfTODWBqHgvwho02+914XikZSKOVVHH94rk/lWa3j1tMu/J0LTdMNspwiCF+R9d2a6bTPi7bxADW9EeDj/AFlo+4Z7Aq2Mfma8s1jUp9e1u81K4+/cSF9v90dh+AwKXR9TvNFvVu7CQq44Know9CK73SPiZbzOItYtfJJP+ti5H4iu5sZbe/gW4s5kmiYcMhzVnyznikKEZrngmeKesR61V1LUbTS4jLdyhfRe5rj9T8U3V7lLMG3gPf8AiauSu2ae9AcluRnJrc1m61/VrDTF1hJ006GIJZqEKowHG73PvUQ0S1+zB3MqvjnBxUEej2zgMZpSD0BIq3ZWtvDIqxKFzlWPUkjpzTdR+zgPD80s7j5Y4xuYe59KgvI7eG1gaSIRXjrhlHce9UdoYdKhnixtOOvFWNK1XUdJkLafdSQ55KqeD9RXdaL8Tpowses2gkH/AD1h4P4iu60rxBpOsoGsryNmP/LNjtYfga//2Q==";
+})();
+</script>
+</body>
+</html>

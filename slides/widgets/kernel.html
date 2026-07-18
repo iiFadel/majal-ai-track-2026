@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .cols { display:flex; gap:22px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
+  .col { text-align:center; }
+  .col h4 { margin:0 0 8px; font-size:13px; font-weight:700; color:#475569;
+            text-transform:uppercase; letter-spacing:.06em; }
+  table.g { border-collapse:collapse; }
+  table.g td {
+    width:38px; height:38px; text-align:center; font-size:12px;
+    font-family:"JetBrains Mono",Menlo,monospace;
+    border:1px solid #cbd5e1; background:#fff; color:#334155;
+    transition: background 150ms ease;
+  }
+  td.pad { background:#f1f5f9; color:#94a3b8; }
+  td.under { background:#fde68a !important; }         /* kernel window on input */
+  td.center { background:#f59e0b !important; color:#fff; font-weight:700; }
+  td.done { background:#d1fae5; color:#065f46; }
+  td.writing { background:#059669 !important; color:#fff; font-weight:700; }
+  td.empty { color:#cbd5e1; }
+  table.k td { width:34px; height:34px; background:#ede9fe; border-color:#c4b5fd; color:#5b21b6; font-weight:700; }
+  #math {
+    margin-top:12px; min-height:44px; text-align:center;
+    font-family:"JetBrains Mono",Menlo,monospace; font-size:13px; color:#334155;
+    background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:9px 10px;
+  }
+  #ctl { display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap; }
+  .grp { display:flex; gap:5px; align-items:center; margin-left:12px; }
+  .grp span { font-size:12px; color:#64748b; font-weight:700; }
+  #counter { color:#64748b; font-size:12px; margin-left:auto; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="kernelBtns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+  <div class="cols">
+    <div class="col"><h4>Input image (numbers!)</h4><div id="inp"></div></div>
+    <div class="col"><h4>Kernel</h4><div id="ker"></div></div>
+    <div class="col"><h4>Feature map (output)</h4><div id="out"></div></div>
+  </div>
+  <div id="math"></div>
+  <div id="ctl">
+    <button class="primary" id="btnPlay">&#9654; Play</button>
+    <button id="btnStep">Step &#9197;</button>
+    <button id="btnReset">&#8634; Reset</button>
+    <div class="grp"><span>Stride</span><button id="s1" class="on">1</button><button id="s2">2</button></div>
+    <div class="grp"><span>Padding</span><button id="p0" class="on">off</button><button id="p1">on</button></div>
+    <span id="counter"></span>
+  </div>
+</div>
+<script>
+(function () {
+  // 8x8 input: a bright square on a dark background -> clean, readable edges.
+  var BASE = [
+    [ 10, 10, 10, 10, 10, 10, 10, 10],
+    [ 10, 10, 10, 10, 10, 10, 10, 10],
+    [ 10, 10, 10, 10, 10, 10, 10, 10],
+    [ 10, 10, 10,200,200,200, 10, 10],
+    [ 10, 10, 10,200,200,200, 10, 10],
+    [ 10, 10, 10,200,200,200, 10, 10],
+    [ 10, 10, 10, 10, 10, 10, 10, 10],
+    [ 10, 10, 10, 10, 10, 10, 10, 10]
+  ];
+  var KERNELS = {
+    "Vertical edges":   [[-1,0,1],[-2,0,2],[-1,0,1]],
+    "Horizontal edges": [[-1,-2,-1],[0,0,0],[1,2,1]],
+    "Blur":             [[0.11,0.11,0.11],[0.11,0.11,0.11],[0.11,0.11,0.11]],
+    "Sharpen":          [[0,-1,0],[-1,5,-1],[0,-1,0]]
+  };
+  var kName = "Vertical edges", stride = 1, usePad = false;
+  var pos = -1, playing = null, outVals = [];
+
+  function $(id) { return document.getElementById(id); }
+
+  function padded() {
+    if (!usePad) { return { img: BASE, off: 0 }; }
+    var n = BASE.length, img = [];
+    for (var r = 0; r < n + 2; r++) {
+      img.push([]);
+      for (var c = 0; c < n + 2; c++) {
+        img[r].push((r === 0 || c === 0 || r === n + 1 || c === n + 1) ? 0 : BASE[r-1][c-1]);
+      }
+    }
+    return { img: img, off: 1 };
+  }
+  function outSize(n) { return Math.floor((n - 3) / stride) + 1; }
+  function positions() {
+    var img = padded().img, m = outSize(img.length), list = [];
+    for (var r = 0; r < m; r++) { for (var c = 0; c < m; c++) { list.push([r, c]); } }
+    return list;
+  }
+  function convAt(r, c) {
+    var img = padded().img, K = KERNELS[kName], s = 0;
+    for (var i = 0; i < 3; i++) { for (var j = 0; j < 3; j++) {
+      s += img[r*stride + i][c*stride + j] * K[i][j];
+    }}
+    return Math.round(s);
+  }
+  function mathText(r, c) {
+    var img = padded().img, K = KERNELS[kName], parts = [];
+    for (var i = 0; i < 3; i++) { for (var j = 0; j < 3; j++) {
+      var kv = K[i][j];
+      if (kv !== 0) { parts.push(img[r*stride + i][c*stride + j] + "&#215;" + (Math.abs(kv) < 1 ? kv.toFixed(2) : kv)); }
+    }}
+    return parts.join(" + ").replace(/\+ -/g, "&#8722; ") + " = <b>" + convAt(r, c) + "</b>";
+  }
+
+  function drawInput(hi) {
+    var P = padded(), img = P.img, html = '<table class="g">';
+    for (var r = 0; r < img.length; r++) {
+      html += "<tr>";
+      for (var c = 0; c < img.length; c++) {
+        var cls = [];
+        if (usePad && (r === 0 || c === 0 || r === img.length-1 || c === img.length-1)) { cls.push("pad"); }
+        if (hi) {
+          var r0 = hi[0]*stride, c0 = hi[1]*stride;
+          if (r >= r0 && r < r0+3 && c >= c0 && c < c0+3) {
+            cls.push(r === r0+1 && c === c0+1 ? "center" : "under");
+          }
+        }
+        html += '<td class="' + cls.join(" ") + '">' + img[r][c] + "</td>";
+      }
+      html += "</tr>";
+    }
+    $("inp").innerHTML = html + "</table>";
+  }
+  function drawKernel() {
+    var K = KERNELS[kName], html = '<table class="g k">';
+    for (var i = 0; i < 3; i++) {
+      html += "<tr>";
+      for (var j = 0; j < 3; j++) {
+        var v = K[i][j];
+        html += "<td>" + (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : v) + "</td>";
+      }
+      html += "</tr>";
+    }
+    $("ker").innerHTML = html + "</table>";
+  }
+  function drawOutput(writeIdx) {
+    var m = outSize(padded().img.length), html = '<table class="g">', idx = 0;
+    for (var r = 0; r < m; r++) {
+      html += "<tr>";
+      for (var c = 0; c < m; c++) {
+        if (idx < outVals.length) {
+          var cls = (writeIdx === idx) ? "writing" : "done";
+          html += '<td class="' + cls + '">' + outVals[idx] + "</td>";
+        } else {
+          html += '<td class="empty">&#183;</td>';
+        }
+        idx++;
+      }
+      html += "</tr>";
+    }
+    $("out").innerHTML = html + "</table>";
+  }
+
+  function reset() {
+    pos = -1; outVals = [];
+    if (playing) { clearInterval(playing); playing = null; }
+    $("btnPlay").innerHTML = "&#9654; Play";
+    drawInput(null); drawKernel(); drawOutput(-1);
+    var m = outSize(padded().img.length);
+    $("math").innerHTML = '<span style="color:#94a3b8">The kernel will visit ' +
+      (m*m) + ' positions and produce a ' + m + '&#215;' + m + ' feature map. Press Play.</span>';
+    $("counter").textContent = "";
+  }
+  function step() {
+    var list = positions();
+    pos++;
+    if (pos >= list.length) {
+      if (playing) { clearInterval(playing); playing = null; }
+      $("btnPlay").innerHTML = "&#9654; Play";
+      pos = list.length - 1;
+      $("math").innerHTML = '<b style="color:#059669">Done!</b> Bright output cells = "my pattern is HERE". ' +
+        'Look where the ' + kName.toLowerCase() + ' kernel fired.';
+      drawInput(null); drawOutput(-1);
+      return;
+    }
+    var rc = list[pos];
+    outVals.push(convAt(rc[0], rc[1]));
+    drawInput(rc); drawOutput(outVals.length - 1);
+    $("math").innerHTML = mathText(rc[0], rc[1]);
+    $("counter").textContent = "position " + (pos + 1) + " / " + list.length;
+  }
+
+  // controls
+  $("btnStep").onclick = function () {
+    if (playing) { clearInterval(playing); playing = null; $("btnPlay").innerHTML = "&#9654; Play"; }
+    step();
+  };
+  $("btnReset").onclick = reset;
+  $("btnPlay").onclick = function () {
+    if (playing) { clearInterval(playing); playing = null; $("btnPlay").innerHTML = "&#9654; Play"; return; }
+    if (pos >= positions().length - 1) { reset(); }
+    $("btnPlay").innerHTML = "&#9208; Pause";
+    step();
+    playing = setInterval(step, 650);
+  };
+  $("s1").onclick = function () { stride = 1; $("s1").className = "on"; $("s2").className = ""; reset(); };
+  $("s2").onclick = function () { stride = 2; $("s2").className = "on"; $("s1").className = ""; reset(); };
+  $("p0").onclick = function () { usePad = false; $("p0").className = "on"; $("p1").className = ""; reset(); };
+  $("p1").onclick = function () { usePad = true;  $("p1").className = "on"; $("p0").className = ""; reset(); };
+
+  var kb = $("kernelBtns");
+  Object.keys(KERNELS).forEach(function (name, i) {
+    var b = document.createElement("button");
+    b.textContent = name;
+    if (i === 0) { b.className = "on"; }
+    b.onclick = function () {
+      kName = name;
+      var bs = kb.querySelectorAll("button");
+      for (var j = 0; j < bs.length; j++) { bs[j].className = ""; }
+      b.className = "on";
+      reset();
+    };
+    kb.appendChild(b);
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>

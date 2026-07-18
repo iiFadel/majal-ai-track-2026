@@ -4,24 +4,13 @@ _site/
 __pycache__/
 .ipynb_checkpoints/
 
-# ---- Days 2-5: not finished yet, excluded until ready ----
-# To publish a day: delete its block below, then `git add` those paths.
-slides/day3.qmd
+
 slides/day4.qmd
 slides/day5.qmd
 
-slides/assets/day3/
 slides/assets/day4/
 slides/assets/day5/
 
-
-slides/widgets/augment.html
-slides/widgets/conv_image.html
-slides/widgets/features.html
-slides/widgets/kernel.html
-slides/widgets/pixels.html
-slides/widgets/pixels_data.js
-slides/widgets/transfer.html
 
 slides/widgets/attention.html
 slides/widgets/embed_map.html

@@ -18,9 +18,8 @@ website:
         text: Day 1
       - href: slides/day2.qmd
         text: Day 2
-              # Day 2-5: add back here once each is ready and un-ignored in .gitignore
-      #   - href: slides/day2.qmd
-      #     text: Day 2
+      - href: slides/day3.qmd
+        text: Day 3
 
 format:
   html:

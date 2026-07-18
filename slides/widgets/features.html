@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .stage { display:flex; gap:24px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .col { text-align:center; }
+  .col h4 { margin:0 0 8px; font-size:13px; font-weight:700; color:#475569;
+            text-transform:uppercase; letter-spacing:.06em; }
+  canvas { border:1px solid #cbd5e1; border-radius:8px; display:block; }
+  .bank { display:grid; grid-template-columns:repeat(3, auto); gap:10px; }
+  .cell { cursor:pointer; position:relative; border-radius:8px; }
+  .cell canvas { transition: box-shadow 150ms ease; }
+  .cell.sel canvas { box-shadow: 0 0 0 3px #7c3aed; }
+  .cell span { display:block; font-size:11px; color:#64748b; margin-top:3px; }
+  .arrow { font-size:30px; color:#94a3b8; }
+  #crumb { text-align:center; font-size:13px; font-weight:700; color:#5b21b6; margin-bottom:10px; }
+  #caption { margin-top:10px; font-size:13px; color:#64748b; text-align:center; min-height:38px; }
+  #ctl { display:flex; gap:8px; margin-top:6px; justify-content:center; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="crumb">Layer 1 &#8212; six different kernels scan the SAME image at once</div>
+  <div class="stage">
+    <div class="col"><h4 id="inTitle">Input</h4><canvas id="cin" width="200" height="200"></canvas></div>
+    <div class="arrow">&#8594;</div>
+    <div class="col"><h4>6 kernels &#8594; 6 feature maps</h4><div class="bank" id="bank"></div></div>
+  </div>
+  <div id="ctl">
+    <button class="primary" id="btnDeeper" disabled>&#10549; Feed the selected map into ANOTHER layer</button>
+    <button id="btnReset">&#8634; Back to the photo</button>
+  </div>
+  <div id="caption">Each map answers one question: &#8220;where is MY pattern?&#8221; Click a map to select it.</div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var SIZE = 128;
+  var FILTERS = [
+    { n: "vertical edges",   k: [[-1,0,1],[-2,0,2],[-1,0,1]] },
+    { n: "horizontal edges", k: [[-1,-2,-1],[0,0,0],[1,2,1]] },
+    { n: "diagonal &#8600;",  k: [[0,1,2],[-1,0,1],[-2,-1,0]] },
+    { n: "diagonal &#8601;",  k: [[2,1,0],[1,0,-1],[0,-1,-2]] },
+    { n: "blob / blur",      k: [[1/9,1/9,1/9],[1/9,1/9,1/9],[1/9,1/9,1/9]] },
+    { n: "outline",          k: [[-1,-1,-1],[-1,8,-1],[-1,-1,-1]] }
+  ];
+  var layer = 1, current = null, selIdx = -1, maps = [];
+
+  function convolve(src, K) {
+    var out = new Float32Array(SIZE * SIZE), lo = Infinity, hi = -Infinity;
+    for (var y = 0; y < SIZE; y++) {
+      for (var x = 0; x < SIZE; x++) {
+        var s = 0;
+        for (var i = -1; i <= 1; i++) {
+          for (var j = -1; j <= 1; j++) {
+            var yy = Math.min(SIZE - 1, Math.max(0, y + i));
+            var xx = Math.min(SIZE - 1, Math.max(0, x + j));
+            s += src[yy * SIZE + xx] * K[i + 1][j + 1];
+          }
+        }
+        s = Math.abs(s);
+        out[y * SIZE + x] = s;
+        if (s < lo) { lo = s; } if (s > hi) { hi = s; }
+      }
+    }
+    var res = new Float32Array(SIZE * SIZE);
+    for (var n = 0; n < out.length; n++) { res[n] = 255 * (out[n] - lo) / (hi - lo + 1e-9); }
+    return res;
+  }
+
+  function paint(cv, buf, scale) {
+    var id = cv.getContext("2d").createImageData(SIZE, SIZE);
+    for (var n = 0; n < SIZE * SIZE; n++) {
+      var v = Math.round(buf[n]);
+      id.data[n*4] = v; id.data[n*4+1] = v; id.data[n*4+2] = v; id.data[n*4+3] = 255;
+    }
+    var tmp = document.createElement("canvas");
+    tmp.width = SIZE; tmp.height = SIZE;
+    tmp.getContext("2d").putImageData(id, 0, 0);
+    var ctx = cv.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(tmp, 0, 0, cv.width, cv.height);
+  }
+
+  function runLayer() {
+    maps = FILTERS.map(function (f) { return convolve(current, f.k); });
+    var bank = $("bank");
+    bank.innerHTML = "";
+    maps.forEach(function (m, i) {
+      var d = document.createElement("div");
+      d.className = "cell";
+      var c = document.createElement("canvas");
+      c.width = 108; c.height = 108;
+      d.appendChild(c);
+      var lbl = document.createElement("span");
+      lbl.innerHTML = FILTERS[i].n;
+      d.appendChild(lbl);
+      d.onclick = function () {
+        selIdx = i;
+        var cells = bank.querySelectorAll(".cell");
+        for (var j = 0; j < cells.length; j++) { cells[j].className = "cell" + (j === i ? " sel" : ""); }
+        $("btnDeeper").disabled = false;
+        $("caption").innerHTML = "Selected: <b>" + FILTERS[i].n + "</b> map. Now feed it into another layer &#8212; kernels scanning a FEATURE MAP find patterns-of-patterns.";
+      };
+      bank.appendChild(d);
+      paint(c, m, 108);
+    });
+  }
+
+  function reset() {
+    layer = 1; selIdx = -1;
+    $("btnDeeper").disabled = true;
+    $("crumb").innerHTML = "Layer 1 &#8212; six different kernels scan the SAME image at once";
+    $("inTitle").textContent = "Input";
+    current = base.slice();
+    paint($("cin"), current, 200);
+    runLayer();
+    $("caption").innerHTML = "Each map answers one question: &#8220;where is MY pattern?&#8221; Click a map to select it.";
+  }
+
+  $("btnDeeper").onclick = function () {
+    if (selIdx < 0) { return; }
+    layer++;
+    current = maps[selIdx];
+    paint($("cin"), current, 200);
+    $("inTitle").textContent = "Input = a Layer " + (layer - 1) + " map";
+    $("crumb").innerHTML = "Layer " + layer + " &#8212; the same kernels, now scanning a <b>feature map</b> instead of the photo";
+    selIdx = -1;
+    $("btnDeeper").disabled = true;
+    runLayer();
+    $("caption").innerHTML = "&#127775; This is the hierarchy: layer " + layer + " detects patterns <i>in the patterns</i> of layer " + (layer - 1) +
+      ". Real CNNs stack this 10&#8211;100 deep &#8212; that is how <i>edges</i> become <i>eyes</i> become <i>faces</i>.";
+  };
+  $("btnReset").onclick = reset;
+
+  var base = null;
+  var img = new Image();
+  img.onload = function () {
+    var tmp = document.createElement("canvas");
+    tmp.width = SIZE; tmp.height = SIZE;
+    var tctx = tmp.getContext("2d");
+    tctx.drawImage(img, 0, 0, SIZE, SIZE);
+    var d = tctx.getImageData(0, 0, SIZE, SIZE).data;
+    base = new Float32Array(SIZE * SIZE);
+    for (var n = 0; n < SIZE * SIZE; n++) { base[n] = d[n * 4]; }
+    reset();
+  };
+  img.src = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPDQwMDRsUFRAWIB0iIiAdHx8kKDQsJCYxJx8fLT0tMTU3Ojo6Iys/RD84QzQ5Ojf/wAALCACAAIABAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/AOiY4NRsSabk0jZJphBzTlQkcmlMZI4NV5JoITiadEP+02KcGjkQNHIrL6qwNNI9Dmm80A+9PBxQSaKB1q0zc03PNBGaTFEjxwQvNOwWNBlmJ7Vw+qeJ7m6nKWzmCEcBVzk+5Iqk/iC+hUA3L9OoJ/kf6Vl3eqS3GXdy5PXJNUmuJYyJIJih9Fbmuh8PeI53nWC6YZYgK/TPsa7uI+ZGreopxXNA4FLQKWpmPJppNJuNP3hUZ3wFUZJrzbX9en1GU5ciN2IijB4CjufeqFl/o4MzOmAOrZyaju9Uilj2lQx9QCKzDKvbKn2pArSMAoLE+lTBJIXV2Rl2HcCRjNdja+NkSFI2thxxnf8A/WrodN1uz1EBYmKSHor9/oa0enagilxRUrHmmmkrJ8WXrWGgXLqpLSDywc9M968ojSeeQJEju5GAAMmuu0zwJqdzCkl/ujQjKx96sv8AD64lkIi3J6UD4bX4YDfn37VuaF4E+wuJbn5yOxrcvNH0+4tTbz26FD1AHI9xXlWuaI2navJaqd0eco3tTNNMgvNkWSytjAPWvTLN5WtEab72OvqKnFLR0p5NANJ3rkfH03mT2Fln5MmRh6ntW58MdCt5DNqNyittO2NSOB716P5CSEBAAMYGKmSzjjGcKPwplwyAYG0464qlevHHEwLBSRXMXl1/c5xnBNcd4pceVFdBNzlSm49ARWD4RUprto5Abe210b3r0uUYOB09KjFOPvSnmg8mg0q81xviaN18QNNIMr5SrF9ec13PgdyumyJxlpM4zjFdVHKUIAI/OnyyyeWSpII9ErIaediQruSOvFV7m2nwPMMhJHU//qrEvonhyrAng7ieo/KuR1+WL7L1BwRj2Gea5m1vPsN9Hcxf8spQce3/ANevWhLHcRRzRkFHUMCPem7adjNAGKaWFBOachrjPGdw7ajEdmI4l4bPX1rd8D3oFhJM0nyby30Fal38RLKzl2RW7SRpwXLbST9Kof8AC1bKY7PsrR56YOQa1oPFUX2JblUyFcCQ+hrlda+I0qXJNsPM29+mK5y88a6jfv8AvG4PbNQ3t0t5bOyDaAuCPQ1ixQyTHOPlz+deneDr/wC2aT5Lx7HtiI/qOxrb6GilB5qHuaTrSoe1c1rOi3OrXV3JLMVjhAEKjtxU/hW3fTtNv4HG6SNckE9T+Fc3J4Z1G8LXDRBYnb5WkfAGOpxVKHwzetOixIjNzuCtkD8a9N0fw8s/hWW1ulZWhO8BHIBPvjrXm0Ph6W5uHLOqQo3I6kj2Hen3OhuDiKV5Vzzui24FEenyxQyqw4ZeM+tZlozGVYQv3CfxNekeDrXytIaUjDSSc/hWyRShc0Ac1XPWgnFAxUroj2kyqv7xlPI+lZHgiWCJ5raXG8yZZT1x3BrtbqzgMI2BDFjgGqVjpsEbvdXGGVfuKgwM962LIB9OuSuNrAjA7V5TEmzWJbMkNy3Q8jmtqOwzyZXKdy3p6VheKrq2hjZbbpGu0f7Rrm9HtmmInC5I7eteraXa/ZdIt4iMNtyfqakZaAOKNvNViKa/ApgParEDLuAfO08GuV8XwvoOtQajZMDDMxPB6+o/rXQ6PrbXQVJCNmOTu4NaM+rtqN8NO02IGC2G+5bOMgfw59zWBrXxCurQPbpp8ttEzH5ZEwSfSuOstTlvr5njQR3DP5iyHsfT6Vv33iCRtNCAeW+fnX3ritQkmuXCs2WZsYzXbeDfDGoP5T3UPlWg+cuxHz+wru7gdcdBxVfbmlCUFBnis8nmmtTM4YVIhrO8TRWp0xzNEvmNwjHsawtEWRLiGJNrckoGyBnHf2zXZ6JqVnaGe3idrm6Ll7mSGE4yfZc4A6Ae1U9dvtGvJEa6FxGkO5i0lo6h+Oi5HJrhxPp1pl4N4ZiSA0ZUj9Kr3t2l1F5qbgFI3tjrz3rPcbp02sDmTgj0r2HwzcNJpojCkImAvHSr8g5qIDBp6gGl2dqxieaa3QVGTzUsR5qDWbP7Zpz4Us65IFcXb3stnKpHDxE4BPpWhpfiKO1sykJltJnkLedD/G3uKu3eoeLPK3PrMKxv0V1+bHvxxXL3d1csSdQvBNzwi8BjVG6vDNB5IUIu7LY4yajsI3uLyOGNiGz8gAzzXtmkWhstOiiY5baCx96nc0zrT0OKeq5rAJ5xSMeMYqP3p0bVZjYkbT0IrzfxTayWmqSjBGTldvTB7VkpO4KBZOFIIx1+lXZb5yIw74VQM/NnNZl7O0zYLfKOgFVndnYt3rrPC+lT299Yy3EDJLPJmF34XI5x+Ir19+BgjBx0qB6jqRBU8Qwea5wKc5oYVGRSoufapgVijaSRgqKMknsKyddtm1vwEdWgsy6/bsCRR8yxKCNx9t1eY3KNHMysCpHXjFQYOcA8GrWn6XealIVtIi+Op7CvQPBfw+vYtRS71GONoVU4Q9CaZ8V78aff6fpli2yW3xcOVP3G/hH5c/lXW+FNei8R6Us+QLmMbZ4/RvX6GtORT6UzbzU0a4qSuczzg0pFN2c9KekZyK5H4hax5FuunWz/ADOMzFT27CvXPCS2OleANLF9LDDaCzUytMwVPmGTnPrmuSm8JeBNTLSWWvQpuyADMjAfTODWBqHgvwho02+914XikZSKOVVHH94rk/lWa3j1tMu/J0LTdMNspwiCF+R9d2a6bTPi7bxADW9EeDj/AFlo+4Z7Aq2Mfma8s1jUp9e1u81K4+/cSF9v90dh+AwKXR9TvNFvVu7CQq44Know9CK73SPiZbzOItYtfJJP+ti5H4iu5sZbe/gW4s5kmiYcMhzVnyznikKEZrngmeKesR61V1LUbTS4jLdyhfRe5rj9T8U3V7lLMG3gPf8AiauSu2ae9AcluRnJrc1m61/VrDTF1hJ006GIJZqEKowHG73PvUQ0S1+zB3MqvjnBxUEej2zgMZpSD0BIq3ZWtvDIqxKFzlWPUkjpzTdR+zgPD80s7j5Y4xuYe59KgvI7eG1gaSIRXjrhlHce9UdoYdKhnixtOOvFWNK1XUdJkLafdSQ55KqeD9RXdaL8Tpowses2gkH/AD1h4P4iu60rxBpOsoGsryNmP/LNjtYfga//2Q==";
+})();
+</script>
+</body>
+</html>

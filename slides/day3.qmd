@@ -96,12 +96,19 @@ Computer vision is revolutionizing how we:
 
 ## A grid of tiny squares {.smaller}
 
-A digital image is a giant grid of **pixels**. Each pixel has:
+A digital image is just a giant grid of tiny colored squares called **pixels**.
 
 ::: {.incremental}
-- a **location**: row and column
-- a **value**: how bright it is, from **0 (black) to 255 (white)**
-- color images: **three** values per pixel . Red, Green, Blue
+- **Location**: the exact row and column position of the pixel in the image
+- **Grayscale images (black & white)**: each pixel has only ONE value, from **0 (pure black)** to **255 (pure white)**
+- **Colored images (RGB)**: each pixel is made by mixing THREE main colors
+  - **R** = Red
+  - **G** = Green
+  - **B** = Blue
+:::
+
+::: {.sub}
+By mixing different intensities of these 3 colors (0 to 255 each), the computer can create **millions of colors**! 🎨
 :::
 
 ## See it yourself {background-color="#fafafa"}
@@ -144,15 +151,12 @@ Hold onto this ladder. The whole day climbs it.
 
 # 🎓 Training a model to see {background-color="#f0fdf4"}
 
-## Like teaching a child {.smaller}
-
-You don't explain what a cat *is* , you show examples:
+## How Data is Used in Training Computer Vision Models? {.smaller}
 
 ::: {.incremental}
-1. Feed thousands of cat images labelled **"cat"**
-2. Feed thousands of dog images labelled **"dog"**
-3. The algorithm finds the patterns that separate them
-4. Show it a **new** image , it classifies cat vs dog
+1. **Feed**: give the model thousands of images labeled "cat" and "dog"
+2. **Learn**: the model automatically learns patterns and differences between cats and dogs
+3. **Test**: show the model new images → test if it can correctly classify them
 :::
 
 . . .
@@ -229,27 +233,25 @@ Welcome to **Deep Learning**.
 Loosely inspired by the brain. The building blocks:
 
 ::: {.incremental}
-- **A neuron** takes input numbers, multiplies each by a **weight** (its importance), sums them, and an **activation function** decides how strongly it "fires"
-- **A layer** = many neurons working in parallel on the same inputs
-- **A network** = stacked layers; each layer's output feeds the next
-- **"Deep"** just means *many layers*
+- **Neuron** (the decision maker): a tiny unit that takes input numbers, decides how important they are by multiplying **weights**, then passes the result on to the next step
+- **Layer** (the team): a group of neurons working together, at the same time, looking at the same data
+- **Network** (the whole chain): stacks of layers working in order , the output of Team 1 becomes the input of Team 2
 :::
 
-![](assets/day3/nn_vs_deep.png){fig-align="center" height="260"}
+::: {.sub}
+**"Deep"** simply means we have MANY teams (layers) working together!
+:::
+
+![](assets/day3/nn_vs_deep.png){fig-align="center" height="230"}
 
 ## How does it learn? The same story, bigger {.smaller}
 
+The training process is simple:
+
 ::: {.incremental}
-1. The network makes a prediction
-2. A **loss function** measures how wrong it was
-3. Every weight gets nudged a tiny bit to reduce the error , that's **backpropagation**
-4. Repeat **millions** of times
-:::
-
-. . .
-
-::: {.big style="font-size:0.95em"}
-The network literally learns from its mistakes.
+1. **Predict**: the network guesses what is in the image
+2. **Check error**: a **loss function** measures how wrong that guess was
+3. **Fix mistakes**: **backpropagation** adjusts the network to reduce the error , it learns from its mistakes, and repeats **millions of times** until it gets it right
 :::
 
 ::: {.sub}
@@ -261,10 +263,9 @@ Same loss-and-weights loop from before, at a much bigger scale.
 ![](assets/day3/feature_hierarchy_car.png){fig-align="center" height="330"}
 
 ::: {.incremental}
-- **Layer 1**: *"I see horizontal and vertical lines"* (edges, corners)
-- **Layers 2–3**: *"these lines form circles and rectangles"* (shapes, textures)
-- **Deeper layers**: *"this circle with spokes looks like a wheel!"* (object parts)
-- **Output layer**: *"it's a car . 95% confident"*
+- **Early layers**: see simple patterns , edges and lines
+- **Deeper layers**: combine lines , see corners and shapes
+- **Final layers**: combine shapes , see whole objects, like cars or faces
 :::
 
 ::: {.sub}

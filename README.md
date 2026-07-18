@@ -8,11 +8,11 @@ Five-day AI curriculum: supervised learning → unsupervised → computer vision
 
 | Day | Topic | Slides | Labs |
 |:---:|-------|:------:|------|
-| 1 | AI Foundations & Supervised Learning | soon | `labs/day1/` |
-| 2 | Unsupervised Learning | soon | `labs/day2/` |
-| 3 | Computer Vision & Deep Learning | soon | `labs/day3/` |
-| 4 | NLP → Transformers → LLMs | soon | `labs/day4/` |
-| 5 | Agentic AI | soon | `labs/day5/` |
+| 1 | AI Foundations & Supervised Learning | `slides/day1/` | `labs/day1/` |
+| 2 | Unsupervised Learning | `slides/day2/` | `labs/day2/` |
+| 3 | Computer Vision & Deep Learning | `slides/day3/` | `labs/day3/` |
+| 4 | NLP → Transformers → LLMs | `slides/day4/` | `labs/day4/` |
+| 5 | Agentic AI | `slides/day5/` | `labs/day5/` |
 
 ## Building locally
 

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  #inp { width:100%; font-family:inherit; font-size:15px; padding:10px 12px;
+         border:1px solid #CDD8DA; border-radius:10px; color:#12333D; }
+  #inp:focus { outline:2px solid #33D2CB; }
+  #toks { margin-top:14px; line-height:2.4; min-height:74px; }
+  .tk { display:inline-block; padding:3px 8px; margin:2px 2px; border-radius:7px;
+        font-family:"JetBrains Mono",Menlo,monospace; font-size:14px; font-weight:700; }
+  #count { margin-top:8px; text-align:center; font-size:13px; color:#517079; font-weight:700; }
+  #count b { color:#00567D; font-family:"JetBrains Mono",Menlo,monospace; font-size:16px; }
+  #examples { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  #note { margin-top:8px; font-size:11.5px; color:#8AA1A8; text-align:center; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="examples">
+    <button data-t="The students love Majal initiative!">English sentence</button>
+    <button data-t="unbelievable retokenization happening">Long words</button>
+    <button data-t="&#1571;&#1581;&#1576; &#1575;&#1604;&#1584;&#1603;&#1575;&#1569; &#1575;&#1604;&#1575;&#1589;&#1591;&#1606;&#1575;&#1593;&#1610;">Arabic</button>
+    <button data-t="GPT-4 costs $0.03 per 1K tokens &#128558;">Symbols &amp; numbers</button>
+  </div>
+  <input id="inp" type="text" value="The students love Majal initiative!" />
+  <div id="toks"></div>
+  <div id="count"></div>
+  <div id="note">Simplified for teaching &#8212; real tokenizers (like BPE) LEARN their splits from data, but the idea is exactly this.</div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var COLORS = ["#CFE6E9","#FDF3B8","#D9F2E5","#F8E1E0","#E4DDF2","#FDE8CC"];
+  var COMMON = {}; // frequent words stay whole
+  ("the a an and or of to in on for is are was were it this that i you we they he she " +
+   "love hate like students student initiative hello world cat dog king queen data model " +
+   "ai machine learning good great day today happy sad").split(" ").forEach(function (w) { COMMON[w] = 1; });
+  var PRE = ["un","re","de","pre","over","under","mis","dis"];
+  var SUF = ["ization","ational","fulness","ation","ility","ingly","ness","ment","able","ible","tion","sion","ing","est","ers","er","ed","ly","es","al","s"];
+
+  function splitWord(w) {
+    var lw = w.toLowerCase();
+    if (COMMON[lw] || w.length <= 4) { return [w]; }
+    // Arabic or non-latin: chunk by 2-3 chars (real tokenizers fragment non-English MORE)
+    if (/[^\u0000-\u007F]/.test(w)) {
+      var parts = [], i = 0;
+      while (i < w.length) { var n = (w.length - i > 3) ? 2 : (w.length - i); parts.push(w.slice(i, i+n)); i += n; }
+      return parts;
+    }
+    var out = [], rest = w;
+    for (var p = 0; p < PRE.length; p++) {
+      if (rest.toLowerCase().indexOf(PRE[p]) === 0 && rest.length > PRE[p].length + 3) {
+        out.push(rest.slice(0, PRE[p].length));
+        rest = rest.slice(PRE[p].length);
+        break;
+      }
+    }
+    var tail = null;
+    for (var s = 0; s < SUF.length; s++) {
+      var sf = SUF[s];
+      if (rest.toLowerCase().length > sf.length + 3 &&
+          rest.toLowerCase().lastIndexOf(sf) === rest.length - sf.length) {
+        tail = rest.slice(rest.length - sf.length);
+        rest = rest.slice(0, rest.length - sf.length);
+        break;
+      }
+    }
+    while (rest.length > 6) { out.push(rest.slice(0, 4)); rest = rest.slice(4); }
+    if (rest) { out.push(rest); }
+    if (tail) { out.push(tail); }
+    return out;
+  }
+
+  function tokenize(text) {
+    var raw = text.match(/[A-Za-z\u0600-\u06FF]+|[0-9]+|[^\sA-Za-z0-9\u0600-\u06FF]/g) || [];
+    var toks = [];
+    raw.forEach(function (r) {
+      if (/[A-Za-z\u0600-\u06FF]/.test(r)) { splitWord(r).forEach(function (t) { toks.push(t); }); }
+      else { toks.push(r); }
+    });
+    return toks;
+  }
+
+  function render() {
+    var text = $("inp").value;
+    var toks = tokenize(text);
+    $("toks").innerHTML = toks.map(function (t, i) {
+      return '<span class="tk" style="background:' + COLORS[i % COLORS.length] + '">' +
+             t.replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</span>';
+    }).join("");
+    $("count").innerHTML = "<b>" + toks.length + "</b> tokens &nbsp;&#183;&nbsp; " + text.length + " characters";
+  }
+
+  $("inp").addEventListener("input", render);
+  var ex = document.querySelectorAll("#examples button");
+  for (var i = 0; i < ex.length; i++) {
+    ex[i].onclick = (function (b) { return function () { $("inp").value = b.getAttribute("data-t"); render(); }; })(ex[i]);
+  }
+  render();
+})();
+</script>
+</body>
+</html>

@@ -5,18 +5,9 @@ __pycache__/
 .ipynb_checkpoints/
 
 
-slides/day4.qmd
 slides/day5.qmd
 
-slides/assets/day4/
 slides/assets/day5/
-
-
-slides/widgets/attention.html
-slides/widgets/embed_map.html
-slides/widgets/embed_data.js
-slides/widgets/nexttoken.html
-slides/widgets/tokenize.html
 
 slides/widgets/loop.html
 slides/widgets/prompt.html

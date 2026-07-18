@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  #prompt { font-size:17px; text-align:center; margin-bottom:14px; color:#12333D; }
+  #prompt b { color:#00567D; }
+  #blank { display:inline-block; min-width:96px; border-bottom:3px solid #FFD728;
+           font-weight:800; color:#B8860B; text-align:center; }
+  .bars { max-width:620px; margin:0 auto; }
+  .brow { display:flex; align-items:center; gap:10px; margin:5px 0; }
+  .brow .tok { flex:0 0 92px; text-align:right; font-family:"JetBrains Mono",Menlo,monospace;
+               font-weight:700; font-size:14px; color:#12333D; }
+  .brow .track { flex:1; height:20px; background:#E0E7E8; border-radius:10px; overflow:hidden; }
+  .brow .track i { display:block; height:100%; background:#00567D; border-radius:10px;
+                   transition: width 250ms ease; }
+  .brow .pc { flex:0 0 52px; font-family:"JetBrains Mono",Menlo,monospace; font-size:13px; color:#517079; }
+  .brow.won .track i { background:#FFD728; }
+  .brow.won .tok { color:#B8860B; }
+  .sl { max-width:520px; margin:16px auto 6px; }
+  .sl label { display:flex; justify-content:space-between; font-size:13px; color:#517079; font-weight:700; margin-bottom:2px; }
+  .sl label b { font-family:"JetBrains Mono",Menlo,monospace; color:#00567D; font-size:15px; }
+  input[type=range] { width:100%; accent-color:#C0504D; }
+  #ctl { display:flex; gap:8px; justify-content:center; margin-top:10px; }
+  #tally { text-align:center; margin-top:8px; font-size:13px; color:#517079; min-height:22px;
+           font-family:"JetBrains Mono",Menlo,monospace; }
+  #story { text-align:center; margin-top:6px; font-size:13.5px; color:#12333D; min-height:38px; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="prompt">&#8220;The weather in Dammam today is <span id="blank">____</span>&#8221;</div>
+  <div class="bars" id="bars"></div>
+  <div class="sl"><label>Temperature <b id="vT">1.0</b></label>
+    <input type="range" id="rT" min="0.1" max="2" step="0.1" value="1"></div>
+  <div id="ctl">
+    <button class="primary" id="bOnce">&#127922; Sample the next token</button>
+    <button id="bMany">&#127922;&#215;50</button>
+    <button id="bReset">&#8634; Clear tally</button>
+  </div>
+  <div id="tally"></div>
+  <div id="story"></div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  // the model's raw scores (logits) for candidate next tokens
+  var TOKS  = ["hot", "sunny", "very", "41\u00B0C", "warm", "humid", "rainy", "purple"];
+  var LOGIT = [ 3.1,   2.8,     2.2,    1.9,       1.7,    1.2,     -0.5,    -3.0  ];
+  var tally = {};
+
+  function probs(T) {
+    var ex = LOGIT.map(function (l) { return Math.exp(l / T); });
+    var s = ex.reduce(function (a, b) { return a + b; }, 0);
+    return ex.map(function (e) { return e / s; });
+  }
+
+  function render(won) {
+    var T = +$("rT").value;
+    $("vT").textContent = T.toFixed(1);
+    var p = probs(T);
+    var html = "";
+    TOKS.forEach(function (t, i) {
+      html += '<div class="brow' + (won === i ? " won" : "") + '">' +
+        '<span class="tok">' + t + '</span>' +
+        '<span class="track"><i style="width:' + (p[i]*100) + '%"></i></span>' +
+        '<span class="pc">' + (p[i]*100).toFixed(1) + '%</span></div>';
+    });
+    $("bars").innerHTML = html;
+    if (T <= 0.3)      { $("story").innerHTML = "&#129393; <b>Low temperature:</b> nearly ALL probability piles onto the top token. Sample 50 times &#8212; you'll get &#8220;" + TOKS[0] + "&#8221; almost every time. Consistent, predictable, boring."; }
+    else if (T <= 1.2) { $("story").innerHTML = "&#128077; <b>Normal temperature:</b> the favorites usually win, but variety sneaks in. This is everyday chatbot mode."; }
+    else               { $("story").innerHTML = "&#129327; <b>High temperature:</b> the distribution flattens &#8212; even &#8220;purple&#8221; gets a real chance. Creative&#8230; and chaotic. (Yes, the weather can now be purple.)"; }
+  }
+
+  function sample() {
+    var p = probs(+$("rT").value);
+    var r = Math.random(), acc = 0, pick = 0;
+    for (var i = 0; i < p.length; i++) { acc += p[i]; if (r <= acc) { pick = i; break; } }
+    return pick;
+  }
+  function showTally() {
+    var parts = [];
+    TOKS.forEach(function (t) { if (tally[t]) { parts.push(t + ":" + tally[t]); } });
+    $("tally").textContent = parts.length ? "tally \u2192 " + parts.join("  ") : "";
+  }
+
+  $("bOnce").onclick = function () {
+    var i = sample();
+    $("blank").textContent = TOKS[i];
+    tally[TOKS[i]] = (tally[TOKS[i]] || 0) + 1;
+    render(i); showTally();
+  };
+  $("bMany").onclick = function () {
+    var last = 0;
+    for (var n = 0; n < 50; n++) { last = sample(); tally[TOKS[last]] = (tally[TOKS[last]] || 0) + 1; }
+    $("blank").textContent = TOKS[last];
+    render(last); showTally();
+  };
+  $("bReset").onclick = function () { tally = {}; $("blank").textContent = "____"; showTally(); render(); };
+  $("rT").oninput = function () { render(); };
+  render();
+})();
+</script>
+</body>
+</html>

@@ -93,6 +93,7 @@ $code-block-bg: $majal-bg;
   line-height: 1.35;
   margin: 0.5em 0;
 }
+.big.left { text-align: left; }
 
 .sub { text-align: center; color: $majal-slate; font-size: 0.8em; }
 
@@ -194,6 +195,13 @@ $code-block-bg: $majal-bg;
 .split-box ul { margin: 0; padding-left: 1.15em; }
 .split-box li { font-size: 0.82em; line-height: 1.35; margin-bottom: 0.5em; }
 .split-box.dark li::marker { color: $majal-yellow; }
+
+// text-fig: text column on the left, a tall figure pinned on the right (Attention, stacked)
+.text-fig { display: flex; gap: 26px; width: 100%; align-items: flex-start; margin-top: 0.3em; }
+.text-fig .tf-text { flex: 1 1 58%; min-width: 0; }
+.text-fig .tf-img { flex: 0 0 38%; display: flex; flex-direction: column; align-items: center; }
+.text-fig .tf-img img { max-height: 460px; width: auto; max-width: 100%; }
+.text-fig .tf-img .cap { color: $majal-slate; font-size: 0.66em; text-align: center; margin-top: 0.4em; line-height: 1.35; }
 
 // gif-two: two labelled figures side by side (stride 1 vs 2, max vs average pooling)
 .gif-two { display: flex; gap: 26px; width: 100%; justify-content: center; align-items: flex-start; margin-top: 0.4em; }

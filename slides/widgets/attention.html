@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  #sents { display:flex; gap:6px; justify-content:center; margin-bottom:12px; flex-wrap:wrap; }
+  #stage { position:relative; }
+  canvas { display:block; margin:0 auto; }
+  #wordrow { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; position:relative; z-index:2; }
+  .wd { padding:6px 10px; border-radius:9px; border:2px solid #CDD8DA; background:#fff;
+        font-size:15px; font-weight:700; color:#12333D; cursor:pointer; transition:all 150ms ease; }
+  .wd:hover { border-color:#33D2CB; }
+  .wd.sel { background:#00567D; color:#fff; border-color:#00567D; }
+  .wd .att { display:block; font-size:10px; text-align:center; font-weight:800;
+             font-family:"JetBrains Mono",Menlo,monospace; color:#1F8F89; min-height:13px; }
+  .wd.sel .att { color:#FFD728; }
+  #cap { margin-top:12px; font-size:13.5px; color:#12333D; text-align:center; min-height:44px; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="sents">
+    <button id="sBig" class="on">&#8220;&#8230;because it was too BIG&#8221;</button>
+    <button id="sSmall">&#8220;&#8230;because it was too SMALL&#8221;</button>
+    <button id="sBank1">&#8220;money in the bank&#8221;</button>
+    <button id="sBank2">&#8220;picnic on the river bank&#8221;</button>
+  </div>
+  <div id="stage">
+    <canvas id="arcs" width="920" height="120"></canvas>
+    <div id="wordrow"></div>
+  </div>
+  <div id="cap"></div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+
+  // Hand-set attention rows (illustrative — shaped like what real models learn).
+  // Each sentence: words[], att = { focusWordIndex: [weights over all words] }, defaultFocus, caption per focus
+  var SENTS = {
+    big: {
+      words: ["The","trophy","didn't","fit","in","the","suitcase","because","it","was","too","big"],
+      focus: 8,
+      att: {
+        8: [.01,.62,.02,.05,.01,.01,.13,.02,0,.02,.03,.08],
+        1: [.15,0,.05,.30,.02,.02,.25,.02,.10,.02,.02,.05],
+        6: [.03,.28,.02,.30,.05,.15,0,.02,.08,.02,.02,.03]
+      },
+      cap: "&#8220;it was too <b>BIG</b>&#8221; &#8594; the model pours <b>62%</b> of &#8220;it&#8221;s attention onto <b>trophy</b>. Big things don't fit into things &#8212; so &#8220;it&#8221; must be the trophy."
+    },
+    small: {
+      words: ["The","trophy","didn't","fit","in","the","suitcase","because","it","was","too","small"],
+      focus: 8,
+      att: {
+        8: [.01,.14,.02,.05,.01,.02,.60,.02,0,.02,.03,.08],
+        1: [.15,0,.05,.30,.02,.02,.25,.02,.10,.02,.02,.05],
+        6: [.03,.28,.02,.30,.05,.15,0,.02,.08,.02,.02,.03]
+      },
+      cap: "One word changed &#8212; and &#8220;it&#8221;s attention FLIPPED to <b>suitcase</b> (60%). Small things fail to CONTAIN &#8212; so &#8220;it&#8221; must be the suitcase. Same word, new meaning, resolved by attention."
+    },
+    bank1: {
+      words: ["I","deposited","money","in","the","bank"],
+      focus: 5,
+      att: {
+        5: [.03,.39,.48,.05,.05,0],
+        2: [.06,.40,0,.05,.04,.45]
+      },
+      cap: "&#8220;bank&#8221; attends to <b>money</b> and <b>deposited</b> &#8594; its vector gets a FINANCE flavor. &#127974;"
+    },
+    bank2: {
+      words: ["We","had","a","picnic","on","the","river","bank"],
+      focus: 7,
+      att: {
+        7: [.02,.02,.02,.28,.05,.03,.58,0],
+        6: [.02,.02,.02,.20,.06,.07,0,.61]
+      },
+      cap: "Same word &#8212; but here &#8220;bank&#8221; attends to <b>river</b> (58%) and <b>picnic</b> &#8594; a NATURE-flavored vector. &#127966;&#65039; THIS is how contextual embeddings solve Day 4's bank problem."
+    }
+  };
+
+  var cur = "big", focusIdx = SENTS.big.focus;
+
+  function render() {
+    var S = SENTS[cur];
+    var row = $("wordrow");
+    row.innerHTML = "";
+    var weights = S.att[focusIdx] || null;
+    S.words.forEach(function (w, i) {
+      var d = document.createElement("div");
+      d.className = "wd" + (i === focusIdx ? " sel" : "");
+      var a = weights ? weights[i] : 0;
+      // heat background for non-focus words
+      if (i !== focusIdx && weights) {
+        d.style.background = "rgba(51,210,203," + Math.min(0.85, a * 1.3) + ")";
+        if (a >= 0.25) { d.style.borderColor = "#1F8F89"; }
+      }
+      d.innerHTML = w + '<span class="att">' + (i === focusIdx ? "&#9733;" : (weights && a >= 0.05 ? Math.round(a*100) + "%" : "")) + "</span>";
+      d.onclick = function () {
+        if (S.att[i]) { focusIdx = i; render(); }
+        else {
+          focusIdx = i; render();
+          $("cap").innerHTML = "No stored attention row for &#8220;" + w + "&#8221; in this demo &#8212; click a <b>highlighted</b> word (real models compute a row for EVERY token).";
+        }
+      };
+      row.appendChild(d);
+    });
+
+    // arcs
+    var cv = $("arcs"), ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!weights) { return; }
+    // measure chip centers after layout
+    setTimeout(function () {
+      var chips = row.querySelectorAll(".wd");
+      var stageRect = $("stage").getBoundingClientRect();
+      var cvRect = cv.getBoundingClientRect();
+      var fx = null, centers = [];
+      for (var i = 0; i < chips.length; i++) {
+        var r = chips[i].getBoundingClientRect();
+        var cx = r.left + r.width/2 - cvRect.left;
+        centers.push(cx);
+        if (i === focusIdx) { fx = cx; }
+      }
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      var Hh = cv.height;
+      centers.forEach(function (cx2, i) {
+        if (i === focusIdx) { return; }
+        var a = weights[i];
+        if (a < 0.03) { return; }
+        ctx.strokeStyle = "rgba(31,143,137," + Math.min(0.95, 0.25 + a) + ")";
+        ctx.lineWidth = 1 + a * 14;
+        ctx.beginPath();
+        ctx.moveTo(fx, Hh - 2);
+        var mid = (fx + cx2) / 2;
+        var lift = Math.min(Hh - 10, 26 + Math.abs(fx - cx2) * 0.22);
+        ctx.quadraticCurveTo(mid, Hh - lift, cx2, Hh - 2);
+        ctx.stroke();
+      });
+    }, 15);
+
+    if (S.att[focusIdx]) {
+      var caps = {
+        big:   { 8: SENTS.big.cap,   1: "&#8220;trophy&#8221; looks at <b>fit</b> and <b>suitcase</b> &#8212; the verbs and objects that define its role.", 6: "&#8220;suitcase&#8221; attends to <b>trophy</b> and <b>fit</b> &#8212; the things it interacts with." },
+        small: { 8: SENTS.small.cap, 1: "&#8220;trophy&#8221; looks at <b>fit</b> and <b>suitcase</b> &#8212; unchanged. Only &#8220;it&#8221;s row flipped.", 6: "&#8220;suitcase&#8221; attends to <b>trophy</b> and <b>fit</b> &#8212; the things it interacts with." },
+        bank1: { 5: SENTS.bank1.cap, 2: "&#8220;money&#8221; attends to <b>deposited</b> and <b>bank</b> &#8212; its financial context." },
+        bank2: { 7: SENTS.bank2.cap, 6: "&#8220;river&#8221; attends mostly to <b>bank</b> &#8212; they form one concept together." }
+      };
+      $("cap").innerHTML = caps[cur][focusIdx] || "";
+    }
+  }
+
+  function setSent(key, btnId) {
+    cur = key; focusIdx = SENTS[key].focus;
+    ["sBig","sSmall","sBank1","sBank2"].forEach(function (b) { $(b).className = (b === btnId) ? "on" : ""; });
+    render();
+  }
+  $("sBig").onclick = function () { setSent("big", "sBig"); };
+  $("sSmall").onclick = function () { setSent("small", "sSmall"); };
+  $("sBank1").onclick = function () { setSent("bank1", "sBank1"); };
+  $("sBank2").onclick = function () { setSent("bank2", "sBank2"); };
+  render();
+})();
+</script>
+</body>
+</html>

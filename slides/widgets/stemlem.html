@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  #words { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
+  .word {
+    font-family:"JetBrains Mono",Menlo,monospace; font-size:14px; font-weight:700;
+    padding:6px 12px; border-radius:9px; cursor:pointer;
+    border:2px solid #CDD8DA; background:#fff; color:#12333D; transition: all 140ms ease;
+  }
+  .word:hover { border-color:#8AA1A8; background:#EEF3F3; }
+  .word.on { background:#00567C; color:#fff; border-color:#00567C; }
+  .panel { display:flex; gap:16px; }
+  .card {
+    flex:1; border-radius:12px; padding:16px 18px; min-height:150px;
+    border:2px solid; position:relative;
+  }
+  .card.stem { background:rgba(192,80,77,.08); border-color:#E7B7B5; }
+  .card.lem  { background:rgba(31,143,137,.09); border-color:#9AD3CF; }
+  .card h4 { margin:0 0 4px; font-size:13px; letter-spacing:.04em; text-transform:uppercase; }
+  .card.stem h4 { color:#B23B37; }
+  .card.lem h4  { color:#1F8F89; }
+  .card .tag { font-size:11px; font-weight:700; color:#517079; margin-bottom:12px; display:block; }
+  .flow { display:flex; align-items:center; justify-content:center; gap:12px; margin:10px 0 6px; flex-wrap:wrap; }
+  .chip {
+    font-family:"JetBrains Mono",Menlo,monospace; font-weight:800; font-size:20px;
+    padding:8px 14px; border-radius:10px; background:#fff; border:2px solid #CDD8DA; color:#12333D;
+  }
+  .card.stem .chip.out { border-color:#C0504D; color:#B23B37; }
+  .card.lem  .chip.out { border-color:#1F8F89; color:#1F8F89; }
+  .arrow { font-size:20px; color:#8AA1A8; }
+  .note { font-size:12px; line-height:1.4; color:#517079; margin-top:8px; text-align:center; }
+  .badge { position:absolute; top:12px; right:14px; font-size:11px; font-weight:800;
+           padding:2px 8px; border-radius:999px; }
+  .badge.bad  { background:#F6D6D4; color:#B23B37; }
+  .badge.good { background:#CDEBE8; color:#1F8F89; }
+  #hint { margin-top:14px; text-align:center; font-size:12.5px; color:#8AA1A8; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div style="font-size:13px;font-weight:700;color:#517079;margin-bottom:10px">
+    Click a word to see how each method cuts it down &#128071;
+  </div>
+  <div id="words"></div>
+  <div class="panel">
+    <div class="card stem">
+      <span class="badge bad" id="stemBadge"></span>
+      <h4>&#9986;&#65039; Stemming</h4>
+      <span class="tag">Fast &amp; dumb: chop endings by rule</span>
+      <div class="flow"><span class="chip" id="stemIn">&#8212;</span><span class="arrow">&#8594;</span><span class="chip out" id="stemOut">&#8212;</span></div>
+      <div class="note" id="stemNote">Pick a word above.</div>
+    </div>
+    <div class="card lem">
+      <span class="badge good" id="lemBadge"></span>
+      <h4>&#128218; Lemmatization</h4>
+      <span class="tag">Smart: look up the real dictionary root</span>
+      <div class="flow"><span class="chip" id="lemIn">&#8212;</span><span class="arrow">&#8594;</span><span class="chip out" id="lemOut">&#8212;</span></div>
+      <div class="note" id="lemNote">Pick a word above.</div>
+    </div>
+  </div>
+  <div id="hint">Watch the words where the two disagree &#8212; that&#8217;s where the dictionary earns its keep.</div>
+</div>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  // stem = crude rule output (may be a non-word); lemma = true dictionary root.
+  var WORDS = [
+    { w:"studies",  stem:"studi",  lemma:"study",  sBad:true,  note:"crude rule strips '-es' and leaves a non-word",
+      lNote:"dictionary knows the base form is 'study'" },
+    { w:"running",  stem:"run",    lemma:"run",    sBad:false, note:"here the rule happens to land on a real word",
+      lNote:"same answer, reached by looking it up" },
+    { w:"better",   stem:"better", lemma:"good",   sBad:true,  note:"no ending to chop, so it gives up , stays 'better'",
+      lNote:"knows 'better' is really a form of 'good'" },
+    { w:"was",      stem:"wa",     lemma:"be",     sBad:true,  note:"blindly strips 's' , 'wa' is meaningless",
+      lNote:"knows 'was' is a form of the verb 'be'" },
+    { w:"caring",   stem:"car",    lemma:"care",   sBad:true,  note:"chops '-ing' too hard , turns caring into 'car'!",
+      lNote:"keeps the meaning: the root is 'care'" },
+    { w:"studying", stem:"studi",  lemma:"study",  sBad:true,  note:"same broken 'studi' again",
+      lNote:"correctly recovers 'study'" },
+    { w:"mice",     stem:"mice",   lemma:"mouse",  sBad:true,  note:"no suffix to strip, so it can't help , stays 'mice'",
+      lNote:"handles irregular plurals: 'mice' &#8594; 'mouse'" },
+    { w:"happily",  stem:"happili", lemma:"happy", sBad:true,  note:"strips '-y'+'-ly' clumsily , 'happili'",
+      lNote:"recovers the real root 'happy'" },
+    { w:"cats",     stem:"cat",    lemma:"cat",    sBad:false, note:"simple plural: the rule works fine",
+      lNote:"same clean result" }
+  ];
+
+  var wrap = $("words");
+  WORDS.forEach(function (d, i) {
+    var b = document.createElement("div");
+    b.className = "word"; b.textContent = d.w; b.dataset.i = i;
+    b.onclick = function () { pick(i); };
+    wrap.appendChild(b);
+  });
+
+  function pick(i) {
+    var d = WORDS[i];
+    [].forEach.call(wrap.children, function (c, j) { c.className = "word" + (j === i ? " on" : ""); });
+    $("stemIn").innerHTML = d.w;  $("stemOut").innerHTML = d.stem;
+    $("lemIn").innerHTML = d.w;   $("lemOut").innerHTML = d.lemma;
+    $("stemNote").innerHTML = d.note;
+    $("lemNote").innerHTML = d.lNote;
+    $("stemBadge").innerHTML = d.sBad ? "non-word &#10007;" : "ok";
+    $("stemBadge").className = "badge " + (d.sBad ? "bad" : "good");
+    $("lemBadge").innerHTML = "real word &#10003;";
+    $("lemBadge").className = "badge good";
+  }
+  pick(0);
+})();
+</script>
+</body>
+</html>

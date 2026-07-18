@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .stage { display:flex; gap:18px; justify-content:center; flex-wrap:wrap; }
+  canvas { border:1px solid #CDD8DA; border-radius:10px; background:#fff; display:block; }
+  #side { width:300px; }
+  #modes { display:flex; gap:6px; margin-bottom:10px; }
+  #chips { display:flex; flex-wrap:wrap; gap:4px; max-height:120px; overflow:auto;
+           border:1px solid #E0E7E8; border-radius:8px; padding:6px; background:#fff; }
+  #chips button { padding:3px 9px; font-size:11.5px; border-radius:999px; }
+  #panel { margin-top:10px; font-size:13px; }
+  .nnrow { display:flex; align-items:center; gap:8px; margin:3px 0; }
+  .nnrow .b { flex:0 0 90px; height:8px; background:#E0E7E8; border-radius:4px; overflow:hidden; }
+  .nnrow .b i { display:block; height:100%; background:#1F8F89; }
+  .nnrow .s { font-family:"JetBrains Mono",Menlo,monospace; color:#517079; flex:0 0 40px; font-size:12px; }
+  .nnrow .w2 { font-weight:700; color:#12333D; }
+  #arith { margin-top:8px; }
+  #arith select { font-family:inherit; font-size:13px; padding:4px 6px; border-radius:8px;
+                  border:1px solid #CDD8DA; background:#fff; color:#12333D; }
+  #arithRes { margin-top:8px; font-size:14px; font-weight:800; color:#00567D; min-height:44px; }
+  #dimbars { margin-top:8px; }
+  .dimrow { display:flex; align-items:center; gap:6px; margin:2px 0; font-size:10.5px; color:#517079; }
+  .dimrow .lab { flex:0 0 128px; text-align:right; }
+  .dimrow .track { flex:1; height:8px; background:#E0E7E8; border-radius:4px; position:relative; }
+  .dimrow .track i { position:absolute; top:0; height:100%; background:#00567D; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="stage">
+    <canvas id="cv" width="520" height="430"></canvas>
+    <div id="side">
+      <div id="modes">
+        <button id="mExplore" class="on">&#128269; Explore</button>
+        <button id="mArith">&#129518; Word arithmetic</button>
+      </div>
+      <div id="exploreUI">
+        <div id="chips"></div>
+        <div id="panel"></div>
+        <div id="dimbars"></div>
+      </div>
+      <div id="arithUI" style="display:none">
+        <div id="arith">
+          <select id="sA"></select> &#8722; <select id="sB"></select> + <select id="sC"></select>
+          <button class="primary" id="bGo" style="margin-left:6px">=</button>
+        </div>
+        <div id="arithRes"></div>
+        <div style="font-size:12px;color:#517079;margin-top:6px">
+          Try: king &#8722; man + woman &nbsp;&#183;&nbsp; prince &#8722; boy + girl &nbsp;&#183;&nbsp; puppy &#8722; dog + cat
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="embed_data.js"></script>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  var W = 520, H = 430;
+  var ctx = $("cv").getContext("2d");
+  var sel = "king", ghost = null;   // ghost = arithmetic result point {x,y,label}
+
+  function vec(w) { return EMB.vecs[EMB.words.indexOf(w)]; }
+  function cos(a, b) {
+    var d=0, na=0, nb=0;
+    for (var i=0;i<a.length;i++){ d+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; }
+    return d / (Math.sqrt(na)*Math.sqrt(nb) + 1e-9);
+  }
+  function px(p) { return 16 + p[0]*(W-32); }
+  function py(p) { return 16 + (1-p[1])*(H-32); }
+
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    var nn = topN(sel, 4).map(function (r) { return r[1]; });
+    EMB.words.forEach(function (w, i) {
+      var x = px(EMB.pos[i]), y = py(EMB.pos[i]);
+      var isSel = (w === sel), isNN = nn.indexOf(w) >= 0;
+      ctx.fillStyle = isSel ? "#C0504D" : (isNN ? "#1F8F89" : "#8AA1A8");
+      ctx.beginPath(); ctx.arc(x, y, isSel ? 7 : (isNN ? 5.5 : 3.5), 0, 7); ctx.fill();
+      ctx.fillStyle = isSel ? "#C0504D" : (isNN ? "#0f6b66" : "#517079");
+      ctx.font = (isSel ? "800 14px" : (isNN ? "800 12px" : "600 10.5px")) + " 'Nunito Sans', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(w, x, y - 9);
+    });
+    if (ghost) {
+      ctx.fillStyle = "#FFD728"; ctx.strokeStyle = "#12333D"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ghost.x, ghost.y, 9, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#7f6000"; ctx.font = "800 13px 'Nunito Sans', sans-serif";
+      ctx.fillText(ghost.label, ghost.x, ghost.y - 13);
+    }
+  }
+
+  function topN(w, k, exclude) {
+    exclude = exclude || [];
+    var v = vec(w), out = [];
+    EMB.words.forEach(function (o) {
+      if (o === w || exclude.indexOf(o) >= 0) { return; }
+      out.push([cos(v, vec(o)), o]);
+    });
+    out.sort(function (a,b) { return b[0]-a[0]; });
+    return out.slice(0, k);
+  }
+
+  function showPanel() {
+    var rows = topN(sel, 5);
+    var html = '<div style="font-weight:800;color:#00567D;margin-bottom:4px">Nearest to &#8220;' + sel + '&#8221;</div>';
+    rows.forEach(function (r) {
+      html += '<div class="nnrow"><span class="s">' + r[0].toFixed(2) + '</span>' +
+              '<span class="b"><i style="width:' + Math.max(3, r[0]*100) + '%"></i></span>' +
+              '<span class="w2">' + r[1] + '</span></div>';
+    });
+    $("panel").innerHTML = html;
+    // dimension bars
+    var v = vec(sel), html2 = '<div style="font-weight:800;color:#517079;font-size:11px;margin-bottom:2px">Its coordinates (9 meaning-dimensions):</div>';
+    EMB.dims.forEach(function (d, i) {
+      var val = v[i]; // -1..1
+      var left = val >= 0 ? 50 : 50 + val*50;
+      var wpc = Math.abs(val)*50;
+      html2 += '<div class="dimrow"><span class="lab">' + d + '</span>' +
+               '<span class="track"><i style="left:' + left + '%;width:' + wpc + '%"></i></span></div>';
+    });
+    $("dimbars").innerHTML = html2;
+  }
+
+  function select(w) {
+    sel = w; ghost = null;
+    var bs = $("chips").querySelectorAll("button");
+    for (var i = 0; i < bs.length; i++) { bs[i].className = bs[i].textContent === w ? "on" : ""; }
+    showPanel(); draw();
+  }
+
+  // build chips + selects
+  EMB.words.forEach(function (w) {
+    var b = document.createElement("button");
+    b.textContent = w;
+    b.onclick = function () { select(w); };
+    $("chips").appendChild(b);
+    ["sA","sB","sC"].forEach(function (sid) {
+      var o = document.createElement("option");
+      o.value = w; o.textContent = w;
+      $(sid).appendChild(o);
+    });
+  });
+  $("sA").value = "king"; $("sB").value = "man"; $("sC").value = "woman";
+
+  // canvas click = select nearest word
+  $("cv").addEventListener("click", function (e) {
+    var r = $("cv").getBoundingClientRect();
+    var mx = e.clientX - r.left, my = e.clientY - r.top, best = null, bd = 1e9;
+    EMB.words.forEach(function (w, i) {
+      var dx = px(EMB.pos[i]) - mx, dy = py(EMB.pos[i]) - my, d = dx*dx + dy*dy;
+      if (d < bd) { bd = d; best = w; }
+    });
+    if (best && bd < 1600) { select(best); }
+  });
+
+  $("mExplore").onclick = function () {
+    $("mExplore").className = "on"; $("mArith").className = "";
+    $("exploreUI").style.display = ""; $("arithUI").style.display = "none";
+    ghost = null; draw();
+  };
+  $("mArith").onclick = function () {
+    $("mArith").className = "on"; $("mExplore").className = "";
+    $("exploreUI").style.display = "none"; $("arithUI").style.display = "";
+  };
+  $("bGo").onclick = function () {
+    var A = $("sA").value, B = $("sB").value, C = $("sC").value;
+    var va = vec(A), vb = vec(B), vc = vec(C);
+    var v = va.map(function (x, i) { return x - vb[i] + vc[i]; });
+    var best = null, bs = -2, second = null;
+    EMB.words.forEach(function (w) {
+      if (w === A || w === B || w === C) { return; }
+      var s = cos(v, vec(w));
+      if (s > bs) { second = best; bs = s; best = w; }
+    });
+    var i = EMB.words.indexOf(best);
+    // ghost lands near the answer word, offset slightly
+    ghost = { x: px(EMB.pos[i]) + 14, y: py(EMB.pos[i]) - 14, label: A + "\u2212" + B + "+" + C };
+    sel = best;
+    $("arithRes").innerHTML = A + " &#8722; " + B + " + " + C + " &#8776; <span style='font-size:1.25em'>" + best +
+      "</span> <span style='color:#517079;font-weight:600;font-size:12px'>(similarity " + bs.toFixed(2) + ")</span>";
+    draw();
+  };
+
+  select("king");
+})();
+</script>
+</body>
+</html>

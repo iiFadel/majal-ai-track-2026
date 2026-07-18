@@ -2,7 +2,7 @@
 
 Five-day AI curriculum: supervised learning → unsupervised → computer vision → NLP/LLMs → agents.
 
-**📊 Slides:** https://<your-username>.github.io/majal-ai/
+**📊 Slides:** https://iifadel.github.io/majal-ai-track-2026/
 
 ## Material
 

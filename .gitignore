@@ -4,15 +4,5 @@ _site/
 __pycache__/
 .ipynb_checkpoints/
 
-
-slides/day5.qmd
-
-slides/assets/day5/
-
-slides/widgets/loop.html
-slides/widgets/prompt.html
-slides/widgets/rag.html
-slides/rag_data.json
-
 /.quarto/
 **/*.quarto_ipynb

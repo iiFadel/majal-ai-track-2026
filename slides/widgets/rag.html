@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .row { display:flex; align-items:center; gap:10px; padding:5px 8px;
+         border-radius:7px; margin:2px 0; transition: background 250ms ease; }
+  .row.hit { background:#d1fae5; }
+  .sc { font-family:"JetBrains Mono",Menlo,monospace; font-size:13px; color:#64748b; flex:0 0 42px; }
+  .row.hit .sc { color:#065f46; font-weight:700; }
+  .bar { flex:0 0 90px; height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:#94a3b8; transition: width 450ms ease; }
+  .row.hit .bar i { background:#059669; }
+  .tx { flex:1; font-size:13px; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row.hit .tx { color:#064e3b; font-weight:500; }
+  #qs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  #err { color:#dc2626; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="qs"></div>
+  <div id="rows"></div>
+  <div id="err"></div>
+</div>
+<script>
+(function () {
+  function cos(a, b) {
+    var d = 0, na = 0, nb = 0;
+    for (var i = 0; i < a.length; i++) { d += a[i]*b[i]; na += a[i]*a[i]; nb += b[i]*b[i]; }
+    return d / (Math.sqrt(na) * Math.sqrt(nb));
+  }
+  function render(data, qi) {
+    var btns = document.querySelectorAll('#qs button');
+    for (var i = 0; i < btns.length; i++) { btns[i].className = (i === qi) ? 'on' : ''; }
+    var scored = data.chunks.map(function (t, i) {
+      return { t: t, s: cos(data.query_vecs[qi], data.chunk_vecs[i]) };
+    }).sort(function (a, b) { return b.s - a.s; });
+    document.getElementById('rows').innerHTML = scored.map(function (r, i) {
+      return '<div class="row ' + (i < 3 ? 'hit' : '') + '">' +
+             '<div class="sc">' + r.s.toFixed(2) + '</div>' +
+             '<div class="bar"><i style="width:' + Math.max(2, r.s * 100) + '%"></i></div>' +
+             '<div class="tx">' + r.t + '</div></div>';
+    }).join('');
+  }
+  fetch('/slides/assets/day5/rag_data.json')
+    .then(function (r) { if (!r.ok) { throw new Error('missing'); } return r.json(); })
+    .then(function (data) {
+      var box = document.getElementById('qs');
+      data.queries.forEach(function (q, i) {
+        var b = document.createElement('button');
+        b.textContent = q;
+        b.onclick = function () { render(data, i); };
+        box.appendChild(b);
+      });
+      render(data, 0);
+    })
+    .catch(function () {
+      document.getElementById('err').textContent =
+        'rag_data.json not found - run:  python scripts/precompute_embeddings.py';
+    });
+})();
+</script>
+</body>
+</html>

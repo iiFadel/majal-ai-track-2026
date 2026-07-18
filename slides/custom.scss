@@ -96,6 +96,7 @@ $code-block-bg: $majal-bg;
 .big.left { text-align: left; }
 
 .sub { text-align: center; color: $majal-slate; font-size: 0.8em; }
+.sub.left { text-align: left; }
 
 // smaller shrink is gentler now that root size is bigger
 .reveal .slides section.smaller { font-size: 0.76em; }

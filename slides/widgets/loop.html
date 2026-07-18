@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  #bubble { min-height:70px; border-radius:10px; padding:10px 12px;
+            font-size:14px; background:#fff; border:1px solid #e2e8f0; }
+  .tag { display:inline-block; font-weight:700; font-size:11px; letter-spacing:.08em;
+         padding:2px 8px; border-radius:999px; color:#fff; margin-bottom:6px; }
+  #ctl { display:flex; gap:8px; margin-top:10px; align-items:center; }
+  #counter { color:#64748b; font-size:13px; margin-left:auto; }
+  #tools { display:flex; gap:8px; justify-content:center; margin:2px 0 10px; flex-wrap:wrap; }
+  .tool {
+    display:flex; align-items:center; gap:6px;
+    font-family:"JetBrains Mono",Menlo,monospace; font-size:12px; font-weight:700;
+    padding:6px 11px; border-radius:9px; border:2px solid #CDD8DA; background:#fff; color:#517079;
+    transition: all 200ms ease;
+  }
+  .tool .ico { font-size:14px; }
+  .tool.active { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.13); color:#fff; }
+  .tool .badge { font-size:10px; font-weight:800; opacity:0; margin-left:2px; }
+  .tool.active .badge { opacity:1; }
+  #toolsLabel { font-size:11px; font-weight:800; color:#8AA1A8; letter-spacing:.05em;
+                text-transform:uppercase; align-self:center; margin-right:2px; }
+</style>
+</head>
+<body>
+<div class="w">
+  <div id="tools">
+    <span id="toolsLabel">Toolbox:</span>
+    <span class="tool" data-tool="get_weather"><span class="ico">&#127780;&#65039;</span>get_weather<span class="badge">&#9654; running</span></span>
+    <span class="tool" data-tool="calculator"><span class="ico">&#129518;</span>calculator<span class="badge">&#9654; running</span></span>
+    <span class="tool" data-tool="search_notes"><span class="ico">&#128269;</span>search_notes<span class="badge">&#9654; running</span></span>
+    <span class="tool" data-tool="send_email"><span class="ico">&#128231;</span>send_email<span class="badge">&#9654; running</span></span>
+  </div>
+  <svg viewBox="0 0 900 300" style="width:100%;height:auto;display:block">
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+      </marker>
+    </defs>
+    <path id="pAct" d="M 265 118 C 400 60, 520 60, 612 112" fill="none" stroke="#cbd5e1" stroke-width="3" marker-end="url(#ah)"/>
+    <path id="pObs" d="M 615 188 C 520 240, 400 240, 268 182" fill="none" stroke="#cbd5e1" stroke-width="3" marker-end="url(#ah)"/>
+    <path id="pAns" d="M 160 210 C 160 268, 240 272, 327 272" fill="none" stroke="#cbd5e1" stroke-width="3" marker-end="url(#ah)"/>
+    <text x="440" y="52" text-anchor="middle" font-size="15" fill="#94a3b8" font-weight="700">ACT &#8212; a JSON order</text>
+    <text x="440" y="258" text-anchor="middle" font-size="15" fill="#94a3b8" font-weight="700">OBSERVE &#8212; the result</text>
+    <rect id="bLLM" x="55" y="95" width="210" height="115" rx="14" fill="#fff" stroke="#cbd5e1" stroke-width="3"/>
+    <text x="160" y="142" text-anchor="middle" font-size="34">&#129504;</text>
+    <text x="160" y="174" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">LLM</text>
+    <text x="160" y="194" text-anchor="middle" font-size="13" fill="#64748b">thinks &amp; decides</text>
+    <rect id="bTool" x="615" y="95" width="230" height="115" rx="14" fill="#fff" stroke="#cbd5e1" stroke-width="3"/>
+    <text x="730" y="138" text-anchor="middle" font-size="30">&#9881;</text>
+    <text x="730" y="168" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">Your Python</text>
+    <text id="toolRunning" x="730" y="190" text-anchor="middle" font-size="12.5" fill="#64748b">runs the tool</text>
+    <rect id="bAns" x="330" y="248" width="215" height="48" rx="10" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="437" y="278" text-anchor="middle" font-size="15" font-weight="700" fill="#94a3b8">&#9989; ANSWER</text>
+    <circle id="dot" cx="0" cy="0" r="9" fill="#7c3aed" opacity="0"/>
+  </svg>
+  <div id="bubble"></div>
+  <div id="ctl">
+    <button class="primary" id="btnPlay">&#9654; Play</button>
+    <button id="btnStep">Step &#9197;</button>
+    <button id="btnReset">&#8634; Reset</button>
+    <span id="counter"></span>
+  </div>
+</div>
+<script>
+(function () {
+  var S = [
+    {k:"task",  t:"Compare the temperatures of Dammam and Abha."},
+    {k:"think", t:"I need Dammam's temperature. I can't know it \u2014 I must call a tool."},
+    {k:"act",   tool:"get_weather", t:'{"tool": "get_weather", "input": "Dammam"}'},
+    {k:"obs",   tool:"get_weather", t:"Dammam: 41\u00B0C, sunny"},
+    {k:"think", t:"Got Dammam. Now I need Abha before I can compare."},
+    {k:"act",   tool:"get_weather", t:'{"tool": "get_weather", "input": "Abha"}'},
+    {k:"obs",   tool:"get_weather", t:"Abha: 24\u00B0C, cloudy"},
+    {k:"think", t:"I have both. The difference is arithmetic \u2014 use the calculator, don't guess."},
+    {k:"act",   tool:"calculator", t:'{"tool": "calculator", "input": "41 - 24"}'},
+    {k:"obs",   tool:"calculator", t:"17"},
+    {k:"think", t:"I have everything. No more tools needed."},
+    {k:"ans",   t:"Dammam is 41\u00B0C, Abha is 24\u00B0C \u2014 Dammam is 17\u00B0C hotter."}
+  ];
+  var C = {task:"#64748b", think:"#7c3aed", act:"#d97706", obs:"#059669", ans:"#0284c7"};
+  var L = {task:"TASK", think:"THINK", act:"ACT", obs:"OBSERVE", ans:"ANSWER"};
+  // each tool gets its own distinct colour so you can see which one lit up
+  var TC = {get_weather:"#0284c7", calculator:"#d946ef", search_notes:"#059669", send_email:"#e11d48"};
+  function $(id) { return document.getElementById(id); }
+  var i = -1, playing = null, anim = null;
+
+  function glow(el, on, color) {
+    el.setAttribute("stroke", on ? color : "#cbd5e1");
+    el.setAttribute("stroke-width", on ? 4 : 3);
+  }
+  function lightTool(name, color) {
+    document.querySelectorAll(".tool").forEach(function (el) {
+      var on = el.dataset.tool === name;
+      el.classList.toggle("active", on);
+      if (on) { el.style.background = color; el.style.borderColor = color; }
+      else { el.style.background = "#fff"; el.style.borderColor = "#CDD8DA"; }
+    });
+  }
+  function clearTools() {
+    document.querySelectorAll(".tool").forEach(function (el) {
+      el.classList.remove("active"); el.style.background = "#fff"; el.style.borderColor = "#CDD8DA";
+    });
+  }
+  function travel(pathId, color, cb) {
+    var p = $(pathId), len = p.getTotalLength(), dot = $("dot");
+    p.setAttribute("stroke", color);
+    dot.setAttribute("fill", color);
+    dot.setAttribute("opacity", 1);
+    var t0 = performance.now(), dur = 750;
+    if (anim) { cancelAnimationFrame(anim); }
+    function frame(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var pt = p.getPointAtLength(k * len);
+      dot.setAttribute("cx", pt.x); dot.setAttribute("cy", pt.y);
+      if (k < 1) { anim = requestAnimationFrame(frame); }
+      else { dot.setAttribute("opacity", 0); if (cb) { cb(); } }
+    }
+    anim = requestAnimationFrame(frame);
+  }
+  function clearAll() {
+    ["pAct","pObs","pAns"].forEach(function (p) { $(p).setAttribute("stroke", "#cbd5e1"); });
+    glow($("bLLM"), false); glow($("bTool"), false); glow($("bAns"), false);
+  }
+  function reset() {
+    i = -1;
+    if (playing) { clearInterval(playing); playing = null; }
+    $("btnPlay").innerHTML = "&#9654; Play";
+    clearAll(); clearTools();
+    $("toolRunning").textContent = "runs the tool";
+    $("toolRunning").setAttribute("fill", "#64748b");
+    $("dot").setAttribute("opacity", 0);
+    $("bubble").innerHTML = '<span style="color:#94a3b8">Press Play, or step through it yourself.</span>';
+    $("counter").textContent = "";
+  }
+  function step() {
+    i++;
+    if (i >= S.length) {
+      if (playing) { clearInterval(playing); playing = null; }
+      $("btnPlay").innerHTML = "&#9654; Play";
+      i = S.length - 1;
+      return;
+    }
+    var s = S[i];
+    $("counter").textContent = "step " + (i + 1) + " / " + S.length;
+    $("bubble").innerHTML =
+      '<span class="tag" style="background:' + C[s.k] + '">' + L[s.k] + '</span><br>' +
+      '<span class="' + (s.k === "act" ? "mono" : "") + '">' + s.t + '</span>';
+    clearAll();
+    if (s.k === "think") { glow($("bLLM"), true, C.think); clearTools(); $("toolRunning").textContent = "runs the tool"; $("toolRunning").setAttribute("fill", "#64748b"); }
+    if (s.k === "act") {
+      var col = TC[s.tool] || C.act;
+      glow($("bLLM"), true, col);
+      lightTool(s.tool, col);
+      $("toolRunning").textContent = s.tool + "()";
+      $("toolRunning").setAttribute("fill", col);
+      travel("pAct", col, function () { glow($("bTool"), true, col); });
+    }
+    if (s.k === "obs") {
+      var col2 = TC[s.tool] || C.obs;
+      glow($("bTool"), true, col2);
+      lightTool(s.tool, col2);
+      travel("pObs", col2, function () { glow($("bLLM"), true, col2); });
+    }
+    if (s.k === "ans") {
+      clearTools(); $("toolRunning").textContent = "done"; $("toolRunning").setAttribute("fill", "#64748b");
+      glow($("bLLM"), true, C.ans);
+      travel("pAns", C.ans, function () { glow($("bAns"), true, C.ans); });
+    }
+  }
+  $("btnStep").onclick = function () {
+    if (playing) { clearInterval(playing); playing = null; }
+    $("btnPlay").innerHTML = "&#9654; Play";
+    step();
+  };
+  $("btnReset").onclick = reset;
+  $("btnPlay").onclick = function () {
+    if (playing) { clearInterval(playing); playing = null; $("btnPlay").innerHTML = "&#9654; Play"; return; }
+    if (i >= S.length - 1) { reset(); }
+    $("btnPlay").innerHTML = "&#9208; Pause";
+    step();
+    playing = setInterval(step, 1900);
+  };
+  reset();
+})();
+</script>
+</body>
+</html>

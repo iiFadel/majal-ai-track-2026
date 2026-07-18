@@ -42,7 +42,7 @@ def main():
         "queries": QUERIES,
         "query_vecs": [[round(float(x), 5) for x in v] for v in model.encode(QUERIES)],
     }
-    path = pathlib.Path(__file__).parent.parent / "slides" / "rag_data.json"
+    path = pathlib.Path(__file__).parent.parent / "assets" / "day5" / "rag_data.json"
     path.write_text(json.dumps(out))
     kb = len(json.dumps(out)) / 1024
     print(f"Wrote {path}  ({kb:.0f} KB, {len(CHUNKS)} chunks, {len(QUERIES)} queries)")
